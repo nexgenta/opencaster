@@ -24,9 +24,6 @@
 #endif
 
 #include <stdio.h>
-#ifdef HAVE_STDIO_EXT_H
-# include <stdio_ext.h>
-#endif
 #include <unistd.h> 
 #include <netinet/in.h>
 #include <stdio.h>
