@@ -25,6 +25,12 @@ AC_CHECK_LIB([pcap],[pcap_read],[PCAP_LIBS="-lpcap"])
 AC_SUBST([PCAP_LIBS])
 LIBS="$oldlibs"
 
+AC_CHECK_LIB([socket],[getaddrinfo],[SOCKET_LIBS="$SOCKET_LIBS -lsocket"])
+AC_CHECK_LIB([nsl],[gethostbyname],[SOCKET_LIBS="$SOCKET_LIBS -lnsl"])
+AC_CHECK_LIB([resolv],[hstrerror],[SOCKET_LIBS="$SOCKET_LIBS -lresolv"])
+AC_SUBST([SOCKET_LIBS])
+LIBS="$oldlibs"
+
 AC_CHECK_HEADERS([inttypes.h stdint.h netinet/ether.h sys/ethernet.h])
 
 AC_MSG_CHECKING([whether to build mpe2sec])
