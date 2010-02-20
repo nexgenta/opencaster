@@ -1,0 +1,3 @@
+bin_PROGRAMS = i13942ts
+
+i13942ts_SOURCES = i13942ts.c
