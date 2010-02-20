@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsinputswitch.o
 TARGET = tsinputswitch
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

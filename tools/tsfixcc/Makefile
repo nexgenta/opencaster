@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsfixcc.o
 TARGET = tsfixcc
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

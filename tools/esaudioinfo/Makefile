@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = esaudioinfo.o
 TARGET = esaudioinfo
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

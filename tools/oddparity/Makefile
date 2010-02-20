@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = oddparity.o
 TARGET = oddparity
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

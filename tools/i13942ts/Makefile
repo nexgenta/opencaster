@@ -3,7 +3,7 @@ CFLAGS  = -g -MD -Wall -I. -I../../include  -D_FILE_OFFSET_BITS=64
 
 OBJS = i13942ts.o
 TARGET = i13942ts
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

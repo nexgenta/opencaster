@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsdoubleoutput.o
 TARGET = tsdoubleoutput
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -48,6 +48,8 @@ int main(int argc, char *argv[])
 	int bframe;
 	int byte_read;
 	FILE* file_es;
+	int ismpeg2;
+	int iseac3;
 	unsigned long long int pts = 0LL;
 	unsigned long long int pts_limit = 0ll;
 	unsigned long long int frame_number = 0ll;
@@ -57,13 +59,15 @@ int main(int argc, char *argv[])
 	unsigned short es_frame_size;
 	unsigned short pes_frame_size;
 	unsigned int sample_rate;
+	unsigned int samples_per_frame;
 	unsigned long long int pts_offset;
 	
 	/* Open pes file */
-	if (argc > 3) {
+	if (argc > 4) {
 		file_es = fopen(argv[1], "rb");
-		sample_rate = atoi(argv[2]);
-		es_frame_size = atoi(argv[3]);
+		samples_per_frame = atoi(argv[2]);
+		sample_rate = atoi(argv[3]);
+		es_frame_size = atoi(argv[4]);
 		if (es_frame_size <= 0) {
 			fprintf(stderr, "audio_frame_size suggested is not valid\n");
 			return 2;
@@ -75,23 +79,24 @@ int main(int argc, char *argv[])
 			return 2;
 		}
 	} else {
-		fprintf(stderr, "Usage: 'esaudio2pes audio.es sample_rate frame_size_without_padding [pts_offset] [pts_limit] [stream_id]'\n");
-		fprintf(stderr, "Example for audio with frame size 768 and sample rate 48000: esaudio2pes audio.es 48000 768\n");
-		fprintf(stderr, "pts_offset can be used to set a pts different from zero to synch audio and video and to control buffering\n");
-		fprintf(stderr, "pts_limit can be used to limit time length\n");
-		fprintf(stderr, "valid is for audio are 110xxxxx, default is 192\n");
+		fprintf(stderr, "Usage: 'esaudio2pes audio.es samples_per_frame sample_rate  frame_size_without_padding [pts_offset] [pts_limit] [stream_id]'\n");
+		fprintf(stderr, "pts_offset can be used to set a pts different from zero to synch audio to the first video pts\n");
+		fprintf(stderr, "pts_limit can be used to limit time length to force audio to end before the last video pts\n");
+		fprintf(stderr, "Example for mpeg layer 2 audio with frame size 768 and sample rate 48000: esaudio2pes audio.es 1152 48000 768\n");
+		fprintf(stderr, "Example for ac3 audio with frame size 240 and sample rate 48000: esaudio2pes audio.es 1536 48000 384\n");
+		fprintf(stderr, "valid id for audio are 110xxxxx, default is 192\n");
 		return 2;
 	}
 
-	if (argc > 4) {
+	if (argc > 5) {
 		pts_offset = atoi(argv[4]);
 	}
 
-	if (argc > 5) {
+	if (argc > 6) {
 		pts_limit = atol(argv[5]);
 	}
 		
-	if (argc > 6) {
+	if (argc > 7) {
 		stream_id = atoi(argv[6]);
 	}
 	
@@ -115,7 +120,7 @@ int main(int argc, char *argv[])
 	/* Skip to the first header  */
 	byte_read = fread(es_frame, 1, ES_HEADER_SIZE, file_es);	
 	while(byte_read) {
-		if ( es_frame[0] == 0xFF && (es_frame[1] >> 5) == 0x07) { 
+		if ((( es_frame[0] == 0xFF && (es_frame[1] >> 5) == 0x07)) || ((es_frame[0] == 0x0B) && (es_frame[1] == 0x77))) { 
 			byte_read = 0;
 		} else {				
 			es_frame[0] = es_frame[1];
@@ -129,17 +134,20 @@ int main(int argc, char *argv[])
 	int padding = 0;
 	pts = pts_offset;
 	frame_number = 1;
+	ismpeg2 = (es_frame[0] == 0xFF) && ((es_frame[1] >> 5)== 0x07);
+	iseac3 = -1;
 	while(byte_read) {	
 	
 	
-		if (es_frame[0] == 0xFF && (es_frame[1] >> 5) == 0x07) { 
+		if ((ismpeg2 && es_frame[0] == 0xFF && (es_frame[1] >> 5) == 0x07) ||
+		(!ismpeg2 && (es_frame[0] == 0x0B) && (es_frame[1] == 0x77))) { 
 
 			byte_read = fread(es_frame + ES_HEADER_SIZE, 1, es_frame_size - ES_HEADER_SIZE, file_es);
 			stamp_ts (pts % PTS_MAX, pes_header + 9);
 			pes_header[9] &= 0x0F; 
 			pes_header[9] |= 0x20; 
 			/* check for padding */
-			if (((es_frame[2] & 0x3) >> 1) > 0) {
+			if (ismpeg2 && (((es_frame[2] & 0x3) >> 1) > 0)) {
 			    /* check layer */
 			    int layer = es_frame[1] & 0x6 >> 1;
 			    if (layer == 2) {
@@ -150,7 +158,8 @@ int main(int argc, char *argv[])
 			} else {
 			    padding = 0;
 			}
-			pts = pts_offset + ((frame_number * 1152 * 90000) / sample_rate);
+			pts = pts_offset + ((frame_number * samples_per_frame * 90000) / sample_rate);
+
 			if (padding) {
 			    pes_frame_size = htons(pes_frame_size + padding);  
 			    memcpy(pes_header + 4, &pes_frame_size, 2);
@@ -169,8 +178,8 @@ int main(int argc, char *argv[])
 			}
 			byte_read = fread(es_frame, 1, ES_HEADER_SIZE, file_es);
 
-		} else {
 			
+		} else {	
 			fprintf(stderr, "Critical: sync byte missing, corrupted ES or frame size changed\n");
 			byte_read = 0;	
 		}

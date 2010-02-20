@@ -69,7 +69,7 @@ class teletext_descriptor(Descriptor):
 	return pack(fmt,
 	    self.ISO639_language_code,
 	    (self.type << 3) | 
-	    (self.magazine_number & 0x1F),
+	    (self.magazine_number & 0x07),
 	    self.page_number,
 		)
 
@@ -118,8 +118,26 @@ class data_broadcast_id_descriptor(Descriptor):
     descriptor_tag = 0x66
 
     def bytes(self):
-        FMT = "!H%ds" % len(self.ID_selector_bytes)
-        return pack(FMT,         
+	if (self.data_broadcast_ID == 0x000A): # DVB-SSU
+	
+	    oui_data_bytes = string.join(
+		map(lambda x: x.pack(),
+		self.OUI_info_loop),
+		"")
+	
+	    oui_data_length = len(oui_data_bytes);
+
+    	    FMT = "!HB%ds%ds" % (oui_data_length,len(self.private_data_bytes))
+    	    return pack(FMT,         
+                    self.data_broadcast_ID,
+		    oui_data_length,
+		    oui_data_bytes,
+		    self.private_data_bytes,
+                    )            
+
+	else:
+    	    FMT = "!H%ds" % len(self.ID_selector_bytes)
+    	    return pack(FMT,         
                     self.data_broadcast_ID,
                     self.ID_selector_bytes,
                     )            
@@ -281,6 +299,17 @@ class service_list_descriptor(Descriptor):
         return pack(FMT,
                     dvb_service_bytes,
                     )
+                    
+######################################################################
+class registration_descriptor(Descriptor):
+
+    descriptor_tag = 0x05
+
+    def bytes(self):
+        fmt = "!L"
+        return pack(fmt,
+    		0x43554549,
+        )
 
 ######################################################################
 class lcn_service_descriptor_loop_item(DVBobject):
@@ -611,7 +640,7 @@ class time_slice_fec_identifier_descriptor(Descriptor):
         fmt = "!BBB"
 
         return pack(fmt,
-                    (self.time_slicing << 7) & 0x80 | (self.mpe_fec << 5) & 0x60 | (0x03 << 4) & 0x18 | self.frame_size & 0x07,
+                    (self.time_slicing << 7) & 0x80 | (self.mpe_fec << 5) & 0x60 | (0x03 << 3) | self.frame_size & 0x07,
                     self.max_burst_duration,
                     (self.max_average_rate << 4) & 0xF0 | time_slice_fec_id & 0x0F,
                     )
@@ -666,7 +695,7 @@ class platform_name(DVBobject):
 		    self.text_char_bytes
 		    )
 
-# FIXME: move this class to another file, it's no descriptor
+# FIXME: move these classes to another file, they are no exactly descriptors
 class platform_id_data(DVBobject):
 
   def pack(self):
@@ -687,7 +716,75 @@ class platform_id_data(DVBobject):
 		    platform_name_loop_length,
 		    pn_bytes
 		    )
+
+class OUI_data(DVBobject):
+
+  def pack(self):
   
+	fmt = "!HBB%ds" % len(self.selector_bytes)
+
+	return pack(fmt,
+		    self.OUI >> 8,
+		    self.OUI & 0xFF,
+		    len(self.selector_bytes),
+		    self.selector_bytes,
+		    )
+
+class OUI_info_loop_item(DVBobject):
+
+  def pack(self):
+  
+	fmt = "!HBBBB%ds" % len(self.selector_bytes)
+
+	return pack(fmt,
+		    self.OUI >> 8,
+		    self.OUI & 0xFF,
+		    0xF0 | self.update_type & 0xF,
+		    0xC0 | (self.update_versioning_flag & 0x1) << 5 | self.update_version & 0x1F,
+		    len(self.selector_bytes),
+		    self.selector_bytes,
+		    )
+
+class compatibility_descriptor_loop_item(DVBobject):
+
+  def pack(self):
+	compatibility_descriptor_subloop_bytes = string.join(
+	  map(lambda x: x.pack(),
+	    self.compatibility_descriptor_subloop),
+          "")
+
+	fmt = "!BBBHBHHB%ds" % len(compatibility_descriptor_subloop_bytes)
+
+	return pack(fmt,
+		    9 + len(compatibility_descriptor_subloop_bytes),
+		    self.descriptor_type,
+		    self.specifier_type,
+		    self.specifier_data >> 8,
+		    self.specifier_data & 0xFF,
+		    self.model,
+		    self.version,
+		    len(self.compatibility_descriptor_subloop),
+		    compatibility_descriptor_subloop_bytes,
+		    )
+
+
+class compatibility_descriptor(DVBobject):
+
+  def pack(self):
+	compatibility_descriptor_loop_bytes = string.join(
+	  map(lambda x: x.pack(),
+	    self.compatibility_descriptor_loop),
+          "")
+
+	fmt = "!HH%ds" % len(compatibility_descriptor_loop_bytes)
+
+	return pack(fmt,
+		    2 + len(compatibility_descriptor_loop_bytes),
+		    len(self.compatibility_descriptor_loop),
+		    compatibility_descriptor_loop_bytes,
+		    )
+
+
 class linkage_descriptor(Descriptor):
     
     descriptor_tag = 0x4A;
@@ -718,10 +815,52 @@ class linkage_descriptor(Descriptor):
 		    pid_bytes,
 		    self.private_data_bytes
 		    )
-	else:
-	  fmt = "!BBBBBBB%ds"
+	
+	elif (self.linkage_type == 0x09):
 
-	  # we care only for linkage_type = 0x0B, other linkage descriptors
+	  # pack oui data loop
+	  oui_data_bytes = string.join(
+          map(lambda x: x.pack(),
+	    self.OUI_loop),
+          "")
+
+	  oui_data_length = len(oui_data_bytes);
+
+	  fmt = "!BBBBBBBB%ds%ds" % (oui_data_length, len(self.private_data_bytes))
+
+	  return pack(fmt,
+		    (self.transport_stream_id >> 8) & 0xFF,
+		    self.transport_stream_id & 0xFF,
+		    (self.original_network_id >> 8) & 0xFF,
+		    self.original_network_id & 0xFF,
+		    (self.service_id >> 8) & 0xFF,
+		    self.service_id & 0xFF,
+		    self.linkage_type,
+		    oui_data_length,
+		    oui_data_bytes,
+		    self.private_data_bytes
+		    )
+
+	elif (self.linkage_type == 0x0A):
+
+	  fmt = "!BBBBBBBB%ds" % len(self.private_data_bytes)
+
+	  return pack(fmt,
+		    (self.transport_stream_id >> 8) & 0xFF,
+		    self.transport_stream_id & 0xFF,
+		    (self.original_network_id >> 8) & 0xFF,
+		    self.original_network_id & 0xFF,
+		    (self.service_id >> 8) & 0xFF,
+		    self.service_id & 0xFF,
+		    self.linkage_type,
+		    self.table_type,
+		    private_data_bytes
+		    )
+
+	else:
+	  fmt = "!BBBBBBB%ds" % len(self.private_data_bytes)
+
+	  # we care only for some linkage_type, other linkage descriptors
 	  # have to be implemented according to ETSI EN 300 468 standard
 
 	  return pack(fmt,
@@ -793,6 +932,52 @@ class content_identifier_descriptor(Descriptor):
                     crid_bytes,
                     )
 
+
+class ssu_location_descriptor(Descriptor):
+
+    descriptor_tag = 0x03
+
+    def bytes(self):
+    
+	if (self.data_broadcast_id == 0x000A):
+	
+    	    FMT = "!HH%ds" % len(self.private_data_bytes)
+    	    return pack(FMT,
+    		    self.data_broadcast_id,
+    		    self.association_tag,
+                    self.private_data_bytes,
+                    )
+
+        else:
+    	    FMT = "!H%ds" % len(self.private_data_bytes)
+    	    return pack(FMT,
+    		    self.data_broadcast_id,
+                    self.private_data_bytes,
+                    )
+
+class scheduling_descriptor(Descriptor):
+
+    descriptor_tag = 0x01
+
+    def bytes(self):
+    
+	FMT = "!HBBBHBBBBBBB%ds" % len(self.private_data_bytes)
+    	return pack(FMT,
+    		MJD_convert(self.year_of_start_date_time, self.month_of_start_date_time, self.day_of_start_date_time),
+		self.hour_of_start_date_time,
+		self.minute_of_start_date_time,
+		self.second_of_start_date_time,
+    		MJD_convert(self.year_of_end_date_time, self.month_of_end_date_time, self.day_of_end_date_time),
+		self.hour_of_end_date_time,
+		self.minute_of_end_date_time,
+		self.second_of_end_date_time,
+    		self.final_availability << 7 | self.Periodicity_flag << 6 | self.period_unit << 4 | self.duration_unit << 2 | self.estimated_cycle_time_unit,
+    		self.Period,
+    		self.Duration,
+    		self.estimated_cycle_time,
+                self.private_data_bytes,
+                )
+
 ######################################################################
 class default_authority_descriptor(Descriptor):
 
@@ -843,14 +1028,42 @@ class ac3_descriptor(Descriptor):
 
     descriptor_tag = 0x6A
     
+    
     def bytes(self):
-	fmt = "!B"
-	return pack(fmt,
-	    (self.component_type_flag & 0x1) << 7 |
-	    (self.bsid_flag & 0x1) << 6 |
-	    (self.mainid_flag & 0x1) << 5 |
-	    (self.asvc_flag & 0x1) << 4,
-	)	
+    	fmt = "!B"
+    	flags_flag = 0
+    	flags = ""
+	if self.component_type_flag == 1:
+	    flags = pack("!B", self.component_type)
+	    flags_flag = 1
+	if self.bsid_flag == 1:
+	    flags = flags + pack("!B", self.bsid)
+	    flags_flag = 1
+	if self.mainid_flag == 1:
+	    flags = flags + pack("!B", self.mainid)
+	    flags_flag = 1
+	if self.asvc_flag == 1:
+	    flags = flags + pack("!B", self.asvc)
+	    flags_flag = 1
+	if flags_flag == 0 :
+	    fmt = (fmt + "%ds") % len(self.additional_info)
+	    return pack(fmt,
+		(self.component_type_flag & 0x1) << 7 |
+		(self.bsid_flag & 0x1) << 6 |
+		(self.mainid_flag & 0x1) << 5 |
+		(self.asvc_flag & 0x1) << 4,
+		self.additional_info
+		)
+	else :
+	    fmt = (fmt + "%ds%ds") % (len(flags), len(self.additional_info))
+	    return pack(fmt,
+		(self.component_type_flag & 0x1) << 7 |
+		(self.bsid_flag & 0x1) << 6 |
+		(self.mainid_flag & 0x1) << 5 |
+		(self.asvc_flag & 0x1) << 4,
+		flags,
+		self.additional_info
+		)
 	
 ######################################################################
 class ISO_639_language_descriptor(Descriptor):

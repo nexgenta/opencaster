@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = ts2pes.o
 TARGET = ts2pes
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

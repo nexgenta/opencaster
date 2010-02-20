@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = pesclock.o
 TARGET = pesclock
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = vbv.o
 TARGET = vbv
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

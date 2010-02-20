@@ -5,16 +5,15 @@ Lorenzo Pallara (l.pallara@avalpa.com)
 
 Introduction:
 This package is a collection of softwares to generate, process, play out, multiplex and broadcast MPEG2 transport stream format in a Linux system.
-It was previously known as JustDVB-It
 
-Manual:
-A .pdf manual is available for download at: http://www.avalpa.com/the-key-values/15-free-software/33-opencaster
-
-Tutorials:
-Many simple tutorial explained in the manual for multiplexing and data casting are available for download at: http://www.avalpa.com/the-key-values/15-free-software/33-opencaster 
+Manual and tutorials:
+A .pdf manual is available in manual directory, the tutorials of the manual are in tutorials directory.
 
 Integration:
 OpenCaster has been successfully integrated with a long list of dvb products, among them there are products by Cisco/Scientific Atlanta, Ericsson/Tandberg, Eurotek, Harmonic/Scopus, MainConcept, Mitan, Screen Service, ...
+
+GUI:
+APE, Avalpa Playlist Editor will allow a graphical control of a simple audio/video/interactive playout system based on OpenCaster, keep tuned on www.avalpa.com
 
 Test:
 OpenCaster has been tested with Rohde & Schwarz DVM100L and Dektec StreamXpert
@@ -23,11 +22,11 @@ Features:
 - output to DVB-S, DVB-T and DVB-C with pci hardware boards
 - output on multicast addresses for TS over IP/UDP (aka IPTV)
 - output to DVB-ASI with pci/usb hardware boards
-- output on file
+- output on file as store Transport Strem file
 - PSI generation (PAT, PMT, NIT, SDT, TDT, AIT, TOT, ...)
 - EPG/EIT generation
-- Object and data carousel generation and receivement (MHP, MHEG5, OTA, ...)
-- third party software MPEG2 audio and video encoder support
+- Object and data carousel generation and receivement (MHP, MHEG5, DVB-SSU, ...)
+- third party software AC-3, MPEG2 audio and MPEG2 video encoder support (ffmpeg among them)
 - MPEG2 hardware encoder support
 - IP encapsulation (MPE)
 - CBR transport stream muxing
@@ -39,6 +38,5 @@ Features:
 - Video buffer verifier
 - PCR timing verifier
 - PES headers analyzer
-- MPEG2 video and MPEG2 audio ES header analyzer
+- MPEG2 video and MPEG2/AC-3 audio ES header analyzer
 - fatcaps DVB-H support
-

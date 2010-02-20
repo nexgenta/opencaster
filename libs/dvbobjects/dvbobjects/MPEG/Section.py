@@ -58,7 +58,7 @@ class Section(DVBobject):
     """
     section_max_size = 4096
     section_syntax_indicator = 1
-    private_indicator = 1
+    private_indicator = 0
     current_next_indicator = 1
 
     def __sanity_check(self):

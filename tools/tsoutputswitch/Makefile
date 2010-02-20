@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsoutputswitch.o
 TARGET = tsoutputswitch
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

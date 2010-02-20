@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = pes2txt.o
 TARGET = pes2txt
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tstcpreceive.o
 TARGET = tstcpreceive
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

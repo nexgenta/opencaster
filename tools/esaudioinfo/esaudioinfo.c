@@ -1,5 +1,5 @@
 /*  
- * Copyright (C) 2004  Lorenzo Pallara, lpallara@cineca.it 
+ * Copyright (C) 2008  Lorenzo Pallara, lpallara@avalpa.com 
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -116,6 +116,53 @@ const char* emphasis[4] = {
 				"CCIT J.17",
 			};
 
+/* AC3 audio */
+
+const char* ac3sampling[4] = {"48000", "32000", "44100", "reserved"};
+const char* eac3sampling[4] = {"24000", "22400", "16000", "reserved"};
+
+unsigned int frame_size_code[38][3] = { /* 32000, 44100, 48000 */
+	{96, 69, 64},
+	{96, 70, 64},
+	{120, 87, 80},
+	{120, 88, 80},
+	{144, 104, 96},
+	{144, 105, 96},
+	{168, 121, 112},
+	{168, 122, 112},
+	{192, 139, 128},
+	{192, 140, 128},
+	{240, 174, 160},
+	{240, 175, 160},
+	{288, 208, 192},
+	{288, 209, 192},
+	{336, 243, 224},
+	{336, 244, 224},
+	{384, 278, 256},
+	{384, 279, 256},
+	{480, 348, 320},
+	{480, 349, 320},
+	{576, 417, 384},
+	{576, 418, 384},
+	{672, 487, 448},
+	{672, 488, 448},
+	{768, 557, 512},
+	{768, 558, 512},
+	{960, 696, 640},
+	{960, 697, 640},
+	{1152, 835, 768},
+	{1152, 836, 768},
+	{1344, 975, 896},
+	{1344, 976, 896},
+	{1536, 1114, 1024},
+	{1536, 1115, 1024},
+	{1728, 1253, 1152},
+	{1728, 1254, 1152},
+	{1920, 1393, 1280},
+	{1920, 1394, 1280}
+};
+
+
 int main(int argc, char *argv[])
 {
 	int byte_read;
@@ -126,6 +173,8 @@ int main(int argc, char *argv[])
 	int sampled;
 	int pad;
 	int framelength;
+	int ismpeg2;
+	int iseac3;
 	int packet_counter;
 	unsigned long long int total_byte_count;
 	
@@ -137,6 +186,9 @@ int main(int argc, char *argv[])
 		file_es = fopen(argv[1], "rb");
 	} else {
 		fprintf(stderr, "Usage: 'esaudioinfo audio.es'\n");
+		fprintf(stderr, "Prints info about sampling and frame size\n");
+		fprintf(stderr, "Supports: mpeg2 audio layer 1,2,3\n");
+		fprintf(stderr, "Supports: ac3 and enhanced-ac3\n");
 		return 2;
 	}
 	if (file_es == 0) {
@@ -149,13 +201,17 @@ int main(int argc, char *argv[])
 	total_byte_count = 0LL;
 	packet_counter = 0;
 	byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
+	
+	ismpeg2 = (es_header[0] == 0xFF) && ((es_header[1] >> 5)== 0x07);
+	iseac3 = -1;
+	
 	while(byte_read) {
 
 		byte_count += byte_read;
 		total_byte_count += byte_read;
 		
 		/* Search headers */
-		if ( (es_header[0] == 0xFF) && ((es_header[1] >> 5)== 0x07)) { /* Audio header tentative */
+		if ( ismpeg2 && (es_header[0] == 0xFF) && ((es_header[1] >> 5)== 0x07)) { /* Audio header tentative */
 
 			packet_counter++;
 			
@@ -207,6 +263,64 @@ int main(int argc, char *argv[])
 			
 			fprintf(stdout, "emphasis: %s\n", emphasis[es_header[3] & 0x03]);		
 			
+			byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
+		
+		} else if (!ismpeg2 && (es_header[0] == 0x0B) && (es_header[1] == 0x77)) {
+			
+			packet_counter++;
+
+			
+			if (byte_count > ES_HEADER_SIZE) {
+				fprintf(stdout, "audio frame size from stream measured: %d bytes, %d bits\n\n", byte_count, byte_count * 8);
+				byte_count = 0;
+			}
+			
+			/* is it possibile to decide if it is ac3 or ac3-enhanced better then this ? how? doing crc?  */
+			if (iseac3 < 0) {
+			    if  (((es_header[2] >> 3) & 0x07) == 0) {
+				iseac3 = 1;
+			    } else {
+				iseac3 = 0;
+			    }
+			}
+			
+			if (iseac3) {
+			
+			    unsigned int frame_size = 0;
+			    unsigned char fs_cod = 0;
+			    frame_size = ((es_header[2] & 0x07) << 8) + es_header[3];
+			    fprintf(stdout, "eac3 frame size is %d byte\n", frame_size * 2);
+
+			    byte_read = fread(es_header, 1, 1, file_es);
+			    byte_count++;
+			    total_byte_count++;
+			    
+			    fs_cod = es_header[0] >> 6;
+			    if (fs_cod != 0x03) {
+				fprintf(stdout, "eac3 sampling rate is %s\n", ac3sampling[fs_cod]);
+			    } else {
+				fs_cod = (es_header[0] >> 4) & 0x03;
+				fprintf(stdout, "eac3 sampling rate is %s\n", eac3sampling[fs_cod]);
+			    }
+			
+			
+			} else {
+
+			    unsigned char frame_code = 0;
+			    unsigned char sampling = 0;
+
+			    byte_read = fread(es_header, 1, 1, file_es);
+			    byte_count++;
+			    total_byte_count++;
+			
+			    sampling = es_header[0] >> 6;
+			    fprintf(stdout, "ac3 sampling rate is %s\n", ac3sampling[sampling]);
+			
+			    frame_code = es_header[0] & 0x3F;
+			    fprintf(stdout, "ac3 frame size is %d byte\n", frame_size_code[frame_code][2 - sampling] * 2);
+
+			}
+				
 			byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
 		
 		} else {

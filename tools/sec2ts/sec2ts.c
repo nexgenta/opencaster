@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ * Stuff option added by julian.cable@bbc.co.uk
+ *
  */
 
 #define _BSD_SOURCE 1
@@ -39,6 +42,7 @@
 
 u_char g_section[SECTION_MAX_SIZE+1];	/* +1 to handle a special case, see later in the code */
 u_char g_section_head[SECTION_HEADER_SIZE];    
+u_short stuff = 0;
 
 u_char* get_section(u_short* section_size, int fd) 
 {
@@ -63,6 +67,17 @@ u_char* get_section(u_short* section_size, int fd)
 				read(fd, g_section + SECTION_HEADER_SIZE, *section_size);
 				section = g_section;
 				*section_size += SECTION_HEADER_SIZE;
+				/* now see if we should add stuffing */
+				if (stuff) {
+					u_short residue = *section_size % 184;
+					/* first TS packet has one octet of overhead */
+					if(residue != 183) {
+						u_short num_stuff_octets = 183 - residue;
+						u_char* stuff_ptr = &g_section[*section_size];
+						memset(stuff_ptr, 0xff, num_stuff_octets);
+						*section_size += num_stuff_octets;
+					}
+				}
 			} else {
 				fprintf(stderr, "Section too big skipped\n");
 			}
@@ -98,11 +113,17 @@ int main(int argc, char *argv[])
 	fd_in = STDIN_FILENO;
 	fd_out = stdout;
 	if (argc > 1) {
+		if (argc > 2) {
+			if(strcmp(argv[2], "-s") == 0) {
+				stuff = 1;
+			}
+		}
 		pid = atoi(argv[1]);
 		if (pid < 8192) {
 			pid = htons(pid);
 	 	} else { 
-			fprintf(stdout, "Usage: 'sec2ts pid', where pid is bounded from 1 to 8191 and as default is %d\n", DEFAULT_PID);
+			fprintf(stdout, "Usage: 'sec2ts pid [-s]', where pid is bounded from 1 to 8191 and as default is %d\n", DEFAULT_PID);
+			fprintf(stdout, "-s tells sec2ts to start sections on TS packet boundaries\n");
 			fprintf(stdout, "Sections come from stdin and ts packets will go out from stdout.\n");
 			return 2;
 		}

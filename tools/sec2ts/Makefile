@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = sec2ts.o
 TARGET = sec2ts
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = pesvideo2ts.o
 TARGET = pesvideo2ts
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tspcrstamp.o
 TARGET = tspcrstamp
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

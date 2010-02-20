@@ -22,7 +22,7 @@
 
 #include "../sectioncrc/sectioncrc.c"
 
-unsigned long sectioncrc( unsigned char*, unsigned int );
+unsigned int sectioncrc( unsigned char*, unsigned int );
 static PyObject* do_sectioncrc( PyObject*, PyObject* );
 static PyMethodDef methods [] = {
     { "sectioncrc", do_sectioncrc, METH_VARARGS },
@@ -37,7 +37,7 @@ void init_crc32(void) {
 
 static PyObject* do_sectioncrc( PyObject *self, PyObject *args ) {
     
-    unsigned long c;
+    unsigned int c;
     char *buf;
     int len;
 
@@ -46,5 +46,5 @@ static PyObject* do_sectioncrc( PyObject *self, PyObject *args ) {
 
     c = sectioncrc( buf, len );
 
-    return Py_BuildValue( "l", c );
+    return Py_BuildValue( "I", c );
 }

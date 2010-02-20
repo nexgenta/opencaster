@@ -4,7 +4,7 @@ LFLAGS  = -lz
 
 OBJS    = zpipe.o
 TARGET  = zpipe
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

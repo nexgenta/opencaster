@@ -62,6 +62,7 @@ unsigned char pts_index = 0; /* PTS index table for the TS packets */
 int frame_size = 0;
 int pes_frame_size = 0;
 int sample_rate = 0;
+int sample_per_frame = 1152;
 unsigned long long ts_packets = 0;
 unsigned long long bitrate = 0;
 
@@ -133,7 +134,7 @@ void restamp_and_output(void) {
 		    pts = time;
 		    frame_number = 2;
 		} else {
-		    pts = pts_offset + ((frame_number * 1152 * PTS_TIME) / sample_rate);
+		    pts = pts_offset + ((frame_number * sample_per_frame * PTS_TIME) / sample_rate);
 		    stamp_ts(pts % PTS_MAX, ts_packet + ts_header_size + 9);
 		    frame_number++;
 		    ts_packet[ts_header_size + 9] &= 0x0F; 
@@ -202,10 +203,10 @@ FILE* openStream(char* argv[], int open_counter, FILE* file_pes[]) {
 	FILE* result = NULL;
 	struct stat file_stat;
 
-	/* fprintf(stderr, "pesaudio2ts: opening %s...  ", argv[5 + open_counter]); */
-	if (lstat(argv[5 + open_counter], &file_stat) == 0) {
+	/* fprintf(stderr, "pesaudio2ts: opening %s...  ", argv[6 + open_counter]); */
+	if (lstat(argv[6 + open_counter], &file_stat) == 0) {
 		if (!S_ISFIFO(file_stat.st_mode)) {
-			result = fopen(argv[5 + open_counter], "rb");
+			result = fopen(argv[6 + open_counter], "rb");
 			file_pes[open_counter] = result;
 			/* fprintf(stderr, "open\n"); */
 		} else {
@@ -221,8 +222,8 @@ void  closeStream(char* argv[], int open_counter, FILE* file_pes[]) {
 
 	struct stat file_stat;
 
-	/* fprintf(stderr, "pesaudio2ts: closing %s...  ", argv[5 + open_counter]); */
-	if (lstat(argv[5 + open_counter], &file_stat) == 0) {
+	/* fprintf(stderr, "pesaudio2ts: closing %s...  ", argv[6 + open_counter]); */
+	if (lstat(argv[6 + open_counter], &file_stat) == 0) {
 		if (!S_ISFIFO(file_stat.st_mode)) {
 			fclose(file_pes[open_counter]);
 			/* fprintf(stderr, "closed\n"); */
@@ -255,16 +256,17 @@ int main(int argc, char *argv[])
 	pid = MAX_PID;
 	current_file_pes = 0;
 	pts_offset = 3600;
-	if (argc >= 6) {
+	if (argc >= 7) {
 		pid = atoi(argv[1]);
-		sample_rate = atoi(argv[2]);
-		frame_size = atoi(argv[3]); /* es frame size */
-		loop_on = atoi(argv[4]) > 0;
-		current_file_pes = fopen(argv[5], "r");		
+		sample_per_frame = atoi(argv[2]);
+		sample_rate = atoi(argv[3]);
+		frame_size = atoi(argv[4]); /* es frame size */
+		loop_on = atoi(argv[5]) > 0;
+		current_file_pes = fopen(argv[6], "r");		
 		file_pes[0] = current_file_pes;
-		snprintf(filelength, PATH_MAX, "%s.length", argv[5]);		
+		snprintf(filelength, PATH_MAX, "%s.length", argv[6]);		
 		if (current_file_pes == NULL) {
-		    /* fprintf(stderr, "pesaudio2ts: failed to open file %s\n", argv[5]); */
+		    /* fprintf(stderr, "pesaudio2ts: failed to open file %s\n", argv[6]); */
 		    return 0;
 		}
 		if (pid >= MAX_PID) {
@@ -276,27 +278,27 @@ int main(int argc, char *argv[])
 	} 
 	
 	/* fifo are all open at the begin */
-	for (i = 6; i < argc; i++) {
+	for (i = 7; i < argc; i++) {
 	    struct stat file_stat;
 	    if (lstat(argv[i], &file_stat) == 0) { /* take stats of the real file not of the symbolic link */
 		if (S_ISFIFO(file_stat.st_mode)) {
-		    file_pes[i - 5] = fopen(argv[i], "rb");
-                    if (file_pes[i - 5] == NULL) {
+		    file_pes[i - 6] = fopen(argv[i], "rb");
+                    if (file_pes[i - 6] == NULL) {
 		        /* fprintf(stderr, "pesaudio2ts: failed to open %s\n", argv[i]); */
 			return 0;
 		    } else {
 		        /* fprintf(stderr, "pesaudio2ts: opens also fifo %s\n", argv[i]); */
 		    }
 		} else {
-		    file_pes[i - 5] = NULL;
+		    file_pes[i - 6] = NULL;
 		}
 	    } else {
-		file_pes[i - 5] = NULL;
+		file_pes[i - 6] = NULL;
 	    }
 	}
 	
 	if (argc < 6) {
-		fprintf(stderr, "Usage: 'pesaudio2ts pid sample_rate es_frame_size loop_on input1.pes [input2.pes ... ]', where pid is bounded from 1 to 8191\n");
+		fprintf(stderr, "Usage: 'pesaudio2ts pid sample_per_frame sample_rate es_frame_size loop_on input1.pes [input2.pes ... ]', where pid is bounded from 1 to 8191\n");
 		fprintf(stderr, "if loop_on is 1 after the last input.pes will start again from the first\n");
 		fprintf(stderr, "loop_on ends if the first file is missing\n");
 		fprintf(stderr, "input*.pes.length is scan for a pts value, if present the value is used to adjust single pes length adding null packets to sync at that pts\n");
@@ -317,7 +319,7 @@ int main(int argc, char *argv[])
 	pes_frame_size = frame_size + 8; /* only payload */
 	frame_size += 14; /* pes header */
 	frame_size = ((frame_size / TS_PACKET_BODY) + ((frame_size % TS_PACKET_BODY) != 0) + ((frame_size % TS_PACKET_BODY) == 183)) * TS_PACKET_SIZE; /* ts encapsulation */
-	bitrate = sample_rate * frame_size * 8 / 1152;
+	bitrate = sample_rate * frame_size * 8 / sample_per_frame;
 	/* fprintf(stderr, "pesaudio2ts: ts bit rate is %llu bps\n", bitrate); */
 	int packets_to_start =  (pts_offset * bitrate) / (PTS_TIME * 8 * TS_PACKET_SIZE);/* packets to pts */
 	packets_to_start -= (frame_size / TS_PACKET_SIZE) + 1 ; /* the first audio frame needs to be there at pts */
@@ -372,7 +374,7 @@ int main(int argc, char *argv[])
 
 			    /* it is necesseary to set next pts time to a multiple of pts frame rate, frame rate is assumed 25fps */
 			    /* it also assume audio ends before video */
-			    unsigned long long next_pts = pts_offset + ((frame_number * 1152 * PTS_TIME) / sample_rate);
+			    unsigned long long next_pts = pts_offset + ((frame_number * sample_per_frame * PTS_TIME) / sample_rate);
 			    unsigned long long next_pts_rounded_to_next_video_frame = 0;
 
 			    /* NB. this is the pes length of the file just closed */
@@ -468,7 +470,8 @@ int main(int argc, char *argv[])
 				look_ahead_buffer[0] == 0x00 && 
 				look_ahead_buffer[1] == 0x00 && 
 				look_ahead_buffer[2] == 0x01 && 
-				(((look_ahead_buffer[3] >> 4) == 0xE0) || ((look_ahead_buffer[3] >> 5) == 0x06))) { 
+				look_ahead_buffer[3] == 0xC0 ) { 
+//				(((look_ahead_buffer[3] >> 4) == 0x0E) || ((look_ahead_buffer[3] >> 5) == 0x06))) { 
 
 			/* Send current packet if there's anything ready */
 			if (ts_payload) {

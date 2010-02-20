@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsstamp.o
 TARGET = tsstamp
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tstimedwrite.o
 TARGET = tstimedwrite
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

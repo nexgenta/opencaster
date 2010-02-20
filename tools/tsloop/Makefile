@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsloop.o
 TARGET = tsloop
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

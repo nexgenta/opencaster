@@ -1,10 +1,10 @@
 C      = gcc
-CFLAGS  = -g -MD -Wall -I. -I../../include -D_FILE_OFFSET_BITS=64
+CFLAGS  = -g -MD -Wall -I. -I../../include 
 LFLAGS  = -lc 
 
-OBJS = esvideo2pes.o
-TARGET = esvideo2pes
-DESTDIR ?= /usr/local/bin/
+OBJS = txt2pes.o
+TARGET = txt2pes
+DESTDIR = /usr/local/bin/
 
 all: $(TARGET)
 

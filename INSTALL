@@ -4,10 +4,10 @@ Lorenzo Pallara l.pallara@avalpa.com
 =============================
 
 How to compile and install:
-The procedure is tested on a Debian Linux 4.0 and 5.0 i386 on a 32bit architecture, that's our envirorment.
+The procedure is tested on a Debian Linux 4.0 and 5.0 i386 on a 32bit architecture, that's our envirorment, 64bit is on test.
 Packages usually required but not installed on the Stable are:
-binutils, gcc, gcc-4.3, libc6-dev, libgomp1, linux-libc-dev, make, python-dev, python2.5-dev, libpcap-dev, libpcap0.8, libpcap0.8-dev and zlib1g-dev, there are mostly development libraries needed to compile OpenCaster.
+binutils, gcc, gcc-4.3, libc6-dev, libgomp1, linux-libc-dev, make, python-dev, python2.5-dev and zlib1g-dev, there are mostly development libraries needed to compile OpenCaster.
 The build has been tested also on Ubuntu 8.10 Linux x86 32bit architecture and has been report to build correctly.
 N.B. Python version should be 2.4 or 2.5
 To build the package you need to type "make" into OpenCaster directory.
-To install the tools you need to type "make install" with root privileges.
+To install the tools in the system you need to type "make install" with root privileges.

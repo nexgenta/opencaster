@@ -18,5 +18,6 @@
     Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 			  
+#include <stdint.h>
 
-unsigned long sectioncrc( unsigned char*, unsigned int );
+uint32_t sectioncrc( unsigned char*, unsigned int );

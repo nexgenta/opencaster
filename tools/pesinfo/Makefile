@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = pesinfo.o
 TARGET = pesinfo
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

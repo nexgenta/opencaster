@@ -1,10 +1,9 @@
 CC      = gcc
 CFLAGS  = -g -O2 -MD -Wall -I. -I../../include -D_FILE_OFFSET_BITS=64
-LFLAGS  = -lpcap 
 
-OBJS    = ip2sec.o ../../libs/sectioncrc/sectioncrc.o
-TARGET  = ip2sec
-DESTDIR = /usr/local/bin/
+OBJS    = mpe.o ../../libs/sectioncrc/sectioncrc.o
+TARGET  = mpe2sec
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

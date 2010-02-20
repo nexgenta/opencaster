@@ -2,7 +2,7 @@ FILE2MOD = file2mod.py
 MOD2SEC = mod2sec.py 
 OCUPDATE = oc-update.sh
 
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all:
 	

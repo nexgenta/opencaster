@@ -1,9 +1,29 @@
-10/06/2009
+15/09/2009
 
 Lorenzo Pallara (l.pallara@avalpa.com)
  
-Known bugs and issues:
-- tools/ip2sec: there are compatibility problems with recent libpcap
+Change log OpenCaster 2.2;
+- tools/pesaudio2ts : added sample_per_frame option
+- tools/esaudio2pes: added sample_per_frame option
+- libs/dvbobjects: improved ac3 descriptor
+- tools/sec2ts: added padding options (by Julian Cable julian.cable@bbc.co.uk)
+
+Change log OpenCaster 2.1;
+- tools/ip2sec: removed
+- tools/mpe2sec: add (by Julian Cable julian.cable@bbc.co.uk)
+- tools/tsccc: continuity counter check
+- tools/txt2pes: txt encapsulation support
+- tools/esaudioinfo: added ac3 minimum parsing
+- tools/pesdata2ts: data encapsulation tool for time stamped data (like subtitles)
+- libs/sectioncrc/sectioncrc.c: 64bit support (by Gil Pedersen <gil@cmi.aau.dk>), janitoring (by Kurganov Yanis <visor@project-i> )
+- libs/dvbobjects: time_slice_fec_identifier_descriptor fix (by Gil Pedersen <gil@cmi.aau.dk>)
+- libs/dvbobjects: section stream event bug fix (by Gabriel Paduan gpaduan@yahoo.com.br)
+- libs/dvbobjects: added suport for DVB-SSU
+- libs/dvbobjects: added suport for teletext
+- OCtutorials: are added to the main package
+- OCtutorials: added tutorial for DVB-SSU
+- OCtutorials: added tutorial for teletext
+- manual: added to the main package
 
 Change log OpenCaster 2.0:
 - tools/tsinputswitch: added
@@ -144,7 +164,7 @@ Change log JustDVB-It 0.5:
 - tools/esvideoinfo: added
 - tools/pes2es: added
 - tools/pes2ts: added
-- tools/pesinfo: added                                                                 
+- tools/pesinfo: added
 - tools/ts2pes: added
 - tools/tscbrmuxer: added
 - tools/vbv: added

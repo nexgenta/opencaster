@@ -14,7 +14,7 @@ OBJS=	dsmcc-receive.o	\
 	util.o		
 
 TARGET = dsmcc-receive
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

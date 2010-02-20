@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = pesaudio2ts.o
 TARGET = pesaudio2ts
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

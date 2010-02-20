@@ -4,7 +4,7 @@ LFLAGS  = -lc
 
 OBJS = tsmodder.o
 TARGET = tsmodder
-DESTDIR = /usr/local/bin/
+DESTDIR ?= /usr/local/bin/
 
 all: $(TARGET)
 

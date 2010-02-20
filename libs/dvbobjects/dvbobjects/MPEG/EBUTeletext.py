@@ -29,14 +29,6 @@ from dvbobjects.utils.ByteInvert import *
 class EBUTeletext(DVBobject):
 	"""The class for EBU Teletext data units, NB. they are not sections
 	"""
-#			field_parity = 1		field_parity = 0
-#0x00		Line number undefined		Line number undefined
-#0x01 to 0x06	reserved for future use		reserved for future use
-#0x07		Line number = 7			Line number = 320
-#0x08		Line number = 8			Line number = 321
-#  : 		       :       			        :
-#0x16		Line number = 22		Line number = 335
-#0x17 to 0x1F	reserved for future use		reserved for future use
 	def pack(self):
 		if (self.data_unit_id == 0xFF):
 			return pack("!BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", 
@@ -57,19 +49,9 @@ class EBUTeletext(DVBobject):
 		b0 = (self.row >> 1) & 0x01
 		hamming2 = invert(hamming84((b3 << 3) | (b2 << 2) | (b1 << 1) | b0))
 		payload = ""
-		for i in range(0, len(self.chars)):
-			payload += pack("!B", invert(oddparity(ord(self.chars[i]))))
-		if (self.row != 0) :
-			assert len(payload) == 40
-			return pack("!BBBBBB",
-				self.data_unit_id, #0x02 non-subtile or 0x03 for subtitles
-				0x2C, # 44 bytes
-				0x01 << 6 | (self.field_parity & 0x01) << 5 | self.line_offset & 0x1F,
-				0xE4, # frame coding EBU Teletext
-				hamming1,
-				hamming2,
-			) + payload # 40 characters of a line, a page is 24 lines
-		else :
+		if (self.row == 0) :
+			for i in range(0, len(self.chars)):
+				payload += pack("!B", invert(oddparity(ord(self.chars[i]))))
 			assert len(payload) == 32
 			hamming3 = invert(hamming84(self.page & 0xF))
 			hamming4 = invert(hamming84((self.page >> 4) & 0xF))
@@ -115,6 +97,44 @@ class EBUTeletext(DVBobject):
 				hamming9,
 				hamming10
 			) + payload
+		elif (self.row == 27) :
+			link1bytes = self.link1.pack()
+			link2bytes = self.link2.pack()
+			link3bytes = self.link3.pack()
+			link4bytes = self.link4.pack()
+			link5bytes = self.link5.pack()
+			link6bytes = self.link6.pack()
+			crc = 0x00 # not used 
+			fmt = "!BBBBBBB%ds%ds%ds%ds%ds%dsBH" % (len(link1bytes), len(link2bytes), len(link3bytes), len(link4bytes), len(link5bytes), len(link6bytes))
+			return pack(fmt,
+				self.data_unit_id, #0x02 non-subtile or 0x03 for subtitles
+				0x2C, # 44 bytes
+				0x01 << 6 | (self.field_parity & 0x01) << 5 | self.line_offset & 0x1F,
+				0xE4, # frame coding EBU Teletext
+				hamming1,
+				hamming2,
+				invert(hamming84(self.designation_code)), # designation code allows 2^4 = 16 different pages more
+				link1bytes,
+				link2bytes,
+				link3bytes,
+				link4bytes,
+				link5bytes,
+				link6bytes,
+				invert(hamming84(0xE)), # LC
+				crc
+			)
+		else :
+			for i in range(0, len(self.chars)):
+				payload += pack("!B", invert(oddparity(ord(self.chars[i]))))
+			assert len(payload) == 40
+			return pack("!BBBBBB",
+				self.data_unit_id, #0x02 non-subtile or 0x03 for subtitles
+				0x2C, # 44 bytes
+				0x01 << 6 | (self.field_parity & 0x01) << 5 | self.line_offset & 0x1F,
+				0xE4, # frame coding EBU Teletext
+				hamming1,
+				hamming2,
+			) + payload # 40 characters of a line, a page is 24 lines
 		
 		
 ######################################################################
@@ -129,5 +149,35 @@ class EBUTeletextUnits(DVBobject):
 		fmt = "!%ds" % (len(pl_bytes))
 		return pack(fmt, 
 			pl_bytes
+		)
+
+class EBUTeletextLink(DVBobject):
+	def pack(self):
+		hamming1 = invert(hamming84(self.page & 0xF))
+		hamming2 = invert(hamming84((self.page >> 4) & 0xF))
+		hamming3 = invert(hamming84(self.subpage & 0xF))
+		b3 = not (self.magazine & 0x1)
+		b2 = (self.subpage >> 6 ) & 0x1
+		b1 = (self.subpage >> 5 ) & 0x1
+		b0 = (self.subpage >> 4 ) & 0x1
+		hamming4 = invert(hamming84((b3 << 3) | (b2 << 2) | (b1 << 1) | b0))
+		b3 = (self.subpage >> 10 ) & 0x1
+		b2 = (self.subpage >> 9 ) & 0x1
+		b1 = (self.subpage >> 8 ) & 0x1
+		b0 = (self.subpage >> 7 ) & 0x1
+		hamming5 = invert(hamming84((b3 << 3) | (b2 << 2) | (b1 << 1) | b0))
+		b3 = not ((self.magazine >> 1) & 0x1)
+		b2 = not ((self.magazine >> 2) & 0x1)
+		b1 = (self.subpage >> 12 ) & 0x1
+		b0 = (self.subpage >> 11 ) & 0x1
+		hamming6 = invert(hamming84((b3 << 3) | (b2 << 2) | (b1 << 1) | b0))
+		fmt = "!BBBBBB" 
+		return pack(fmt, 
+			hamming1,
+			hamming2,
+			hamming3,
+			hamming4,
+			hamming5,
+			hamming6,
 		)
 

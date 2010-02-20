@@ -3,11 +3,12 @@ SUBDIRS = oc2sec sec2ts zpipe \
 	tspcrmeasure tspidmapper esaudio2pes esaudioinfo \
 	esvideo2pes esvideoinfo pes2es pesaudio2ts \
 	pesvideo2ts pesinfo tsstamp \
-	ts2pes ip2sec tscbrmuxer vbv tstdt i13942ts \
+	ts2pes mpe2sec tscbrmuxer vbv tstdt i13942ts \
 	tsvbr2cbr tsfixcc tsudpreceive tsudpsend dsmcc-receive \
 	pesclock tspcrstamp tstcpreceive tstcpsend tstimeout \
 	tstimedwrite tsinputswitch tsdoubleoutput pes2txt \
-	tsoutputswitch totsectionrestamp
+	tsoutputswitch totsectionrestamp tsccc txt2pes \
+	pesdata2ts
 
 subdirs:        $(SUBDIRS)
 $(SUBDIRS):
