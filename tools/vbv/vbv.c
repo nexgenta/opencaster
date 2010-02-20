@@ -96,6 +96,8 @@ const double frame_sec[16] = {
 				1.0,
 };
 
+#define queue oc_queue
+
 typedef struct queue {
 	long long int		index;
 	int			value;

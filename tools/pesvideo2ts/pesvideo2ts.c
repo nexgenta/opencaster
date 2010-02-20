@@ -87,6 +87,8 @@ unsigned char pts_index;			/* PTS index  for the TS packets */
 int first_pts = 0;
 char filename[PATH_MAX];
 
+#define queue oc_queue
+
 typedef struct queue {
 	unsigned long long	size;
 	struct queue*		next;
