@@ -16,8 +16,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include <stdio_ext.h> 
-#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <fcntl.h>

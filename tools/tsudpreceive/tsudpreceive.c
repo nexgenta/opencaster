@@ -19,6 +19,10 @@
 
 #define MULTICAST
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +41,11 @@ int main(int argc, char* argv[]) {
 
     int sockfd;
     struct sockaddr_in addr;
+#ifdef HAVE_IP_MREQN
     struct ip_mreqn mgroup;
+#else
+	struct ip_mreq mgroup;
+#endif
     int reuse;
     unsigned int addrlen;
     int len;
@@ -55,7 +63,11 @@ int main(int argc, char* argv[]) {
     } else {
 	memset((char *) &mgroup, 0, sizeof(mgroup));
 	mgroup.imr_multiaddr.s_addr = inet_addr(argv[1]);
+#ifdef HAVE_IP_MREQN
 	mgroup.imr_address.s_addr = INADDR_ANY;
+#else
+	mgroup.imr_interface.s_addr = INADDR_ANY;
+#endif
 	memset((char *) &addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(atoi(argv[2]));

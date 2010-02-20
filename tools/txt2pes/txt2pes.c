@@ -18,17 +18,19 @@
 
 #define _BSD_SOURCE 1
 
-#include <stdio.h> 
-#include <stdio_ext.h> 
-#include <unistd.h> 
-#include <netinet/ether.h>
-#include <netinet/in.h>
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
-#include <inttypes.h>
+#ifdef HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
 
 #define EBU_UNIT_SIZE 46
 

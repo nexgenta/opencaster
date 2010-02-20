@@ -1,3 +1,3 @@
-bin_PROGRAMS = tsfixcc
+bin_PROGRAMS = tsloop
 
-tsfixcc_SOURCES = tsfixcc.c
+tsloop_SOURCES = tsloop.c

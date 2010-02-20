@@ -1,3 +1,3 @@
-bin_PROGRAMS = tsfixcc
+bin_PROGRAMS = tsinputswitch
 
-tsfixcc_SOURCES = tsfixcc.c
+tsinputswitch_SOURCES = tsinputswitch.c

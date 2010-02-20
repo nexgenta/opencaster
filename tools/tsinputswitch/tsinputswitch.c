@@ -21,10 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/reboot.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
@@ -32,8 +28,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <linux/fb.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/socket.h>

@@ -18,16 +18,20 @@
 
 #define _BSD_SOURCE 1
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdio.h> 
-#include <stdio_ext.h> 
 #include <unistd.h> 
-#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <inttypes.h>
+#ifdef HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
 
 #define MAX_PID 8192
 #define PES_HEADER_SIZE 4

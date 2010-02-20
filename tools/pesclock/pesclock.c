@@ -21,12 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/reboot.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <limits.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -34,17 +29,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <linux/fb.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <string.h>
-
-
 
 #define MAX_FD 256
 #define PACK_HEADER_SIZE 19

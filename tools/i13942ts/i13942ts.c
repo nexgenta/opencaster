@@ -18,16 +18,26 @@
 
 #define _BSD_SOURCE 1
 
-#include <stdio.h> 
-#include <stdio_ext.h> 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include <stdio.h>
+#ifdef HAVE_STDIO_EXT_H
+# include <stdio_ext.h>
+#endif
 #include <unistd.h> 
-#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <inttypes.h>
+#ifdef HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 #define I1394_HEADER_SIZE 4
 #define CIP_HEADER_SIZE 8
