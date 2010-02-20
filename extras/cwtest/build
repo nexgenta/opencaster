@@ -1,0 +1,4 @@
+make CC="$HOME/tuxbox/root/cdk/powerpc-tuxbox-linux-gnu/bin/gcc \
+-I $HOME/tuxbox/root/cdk/powerpc-tuxbox-linux-gnu/include \
+-I $HOME/driver/include \
+-I $HOME/tuxbox/cdk/linux-2.6.9/include"

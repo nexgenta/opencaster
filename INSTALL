@@ -1,0 +1,12 @@
+OpenCaster 1.0 30/6/2008
+
+Lorenzo Pallara l.pallara@avalpa.com
+=============================
+
+How to compile and install:
+The procedure is tested on a Debian Stable Linux x86 32bit architecture, that's our envirorment.
+Packages usually required but not installed on the Stable are: python-dev, libpcap-dev and zlib1g-dev, there are development libraries needed to compile OpenCaster.
+N.B. Python version should be 2.4, even minor numbers like 2.3 or 2.5 brings quite important differences, just type "python" and check version number.
+To build the package you need to type "make" into OpenCaster directory.
+To install the tools you need to type "make install" with root privileges.
+

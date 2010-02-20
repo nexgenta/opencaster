@@ -1,0 +1,30 @@
+OpenCaster 1.0 30/6/2008
+
+Lorenzo Pallara (l.pallara@avalpa.com)
+
+Introduction:
+This package is a collection of softwares to generate, process, multiplex and broadcast MPEG2 transport stream format in a Linux system.
+It was previously known as JustDVB-It
+
+Manual:
+A .pdf manual is available for download at: http://www.avalpa.com/the-key-values/15-free-software/33-opencaster
+
+Features:
+- PSI generation (PAT, PMT, NIT, SDT, TDT, AIT, ...)
+- Object and data carousel generation (MHP, MHEG5, OTA, ...)
+- ffmpeg MPEG2 audio video encoder support 
+- FATCAPS DVB-H support 
+- IP encapsulation (MPE)
+- Scrambling and descrambling (ECD)
+- CBR transport stream muxing
+- Null packet replacement
+- PID filtering
+- PID remappaing
+- EPG/EIT generation
+- Null packet insertion
+- Video buffer verifier
+- PCR timing verifier
+- PES headers analyzer
+- MPEG2 video and MPEG2 audio ES header analyzer
+- output to DVB-ASI with pci hardware boards
+- output to DVB-S, DVB-T and DVB-C with pci hardware boards

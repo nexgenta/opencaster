@@ -1,0 +1,146 @@
+OpenCaster 1.0 30/6/2008
+
+Lorenzo Pallara (l.pallara@avalpa.com)
+
+Known bugs:
+tools/tstdt: is it necessary to change section version? it doesn't but some boxes seem to complain
+tools/tsmodder: to manage small bit rate shouldn't use tsloop
+tools/tsloop: loop functionalties need be factorized and put as a library, null packet also
+tools/ip2sec: there are compatibility problems with recent libpcap
+tools/esvideo2pes: uses a fixed GOP, can be rewritten to manage dynamically changing GOP, that's actually not good for CBRness
+
+Change log OpenCaster 1.0:
+- tools/esvideo2pes: bug fixed, was working if GOP had 2 B-frame
+- tools/pesvideo2ts: added a pcr packet at the begin
+- tools/tsstamp: added support for pts and dts restamp to manage loops
+
+Change log JustDVB-It 3.1:
+- bug fix on sec2ts ts section padding after notice by Fernando Martinze Navarro (FernandoMartinezNavarro@rohde-schwarz.com)
+
+Change log JustDVB-It 3.0:
+- added support for mpeg2 elementary stream video input from ffmpeg
+- added CAT, EMM, ECM sections
+- started merging dvb-h funcionalities from fatcaps of amuse project, kudos to Andreas Berger (berger@ftw.at)
+- tools/pes2ts: renamed tools/pesaudio2ts
+- tools/tsvbr2cbr: added
+- tools/pesvideo2ts: added 
+- added ffmpeg directory with sample .sh to generate audio/video input files from ffmpeg
+- added ffmpeg/encode.txt 
+- added tools/tsstamp: PCR stamping tool
+- tools/tscbrmuxer: fix to manage small bit rate, needs refactoring
+
+Change log JustDVB-It 2.1:
+Fixed interoperability issue with some old ADB boxes dsmcc client with last section number of modules multiple of 4066
+Improved modules update performance
+
+Change log JustDVB-It 2.0:
+SciTE help included
+Bluetop BSTC-12 DVB-ASI output: tested
+Dektec DTA110T DVB-T modulator support: tested
+MHEG5 DSMCC carousel generation: tested
+Fixed support for python 2.4, currently both python 2.3 and 2.4 are working properly
+Transport stream successfully tested against StreamAnalyzer of Panasonic from MHP KBD
+Sample configuration timings successfully tested against TR-101i 290 with Dektec StreamXpert 
+Removed debug prints
+tools/tscrypt: added
+extras/cwtest: added
+extras/javasrc: added java source code of the example applications
+extras/mainconcept: added a script to manage mainconcept output
+bash-config/: added application storage option for MHP 1.1.2
+bash-config/: added Yambo 2.0 example applications
+bash-config/: added Test ste example application
+SciTE help included
+python-config/: new python only config, bash will phase out...
+python-config/: it is possibile to specify module id for each file or only for some, check the .descriptors example
+python-config/: added datacarousel example
+tools/i3942ts: added
+tools/tspcrmeasure: bug fix on print
+tools/tsloop: cc fix
+tools/zpipe: added
+tools/DtPlay: removed, now it is necessary to get it from Dektec web site
+tools/lib/DTAPI: removed, now it is necessary to get it from Dektec web site
+libs/: added application storage descriptor (MHP 1.1.2)
+libs/: added parental rating descriptor
+libs/: added logical channel number descriptor
+libs/: added support for compressed DSMCC modules
+added support for very large files (>2GB)
+manual.txt: Video and audio multiplexing revisited, renamed readme.txt (people miss it...)
+
+Change log JustDVB-It 1.2:
+dvbobjects/STE.py: addded Stream Event Descriptor Section
+dvbobjects/STEO.py: addded Stream Event Object
+dvbobjects/DSMCC: addded Stream Event Object with Do-It-Now support
+config/: stream event example added
+tools/tsnullshaper: added files loop to reduce latency
+
+Change log JustDVB-It 1.1.1:
+Just a very cosmetical fix
+
+Change log JustDVB-It 1.1:
+Fix a JustDvb-It bug about bad string termination thanks to IdWay support.
+
+Change log JustDVB-It 1.0:
+DtRecord: removed, if u need it u can use the official from Dektec
+EIT: bug fix
+tstdt: added new, generates gmt time from server clock and restamp TDT packets
+docs: manual.txt added
+tools/tsloop: support multiple input, removed buffering, good for transport scheduling
+config: shows an example of cbr muxing and multicarousel from MainConcept's input
+
+Change log JustDVB-It 0.5:
+tools/tsnullshaper: bug fix        
+tools/oc2sec: buf fix on debug prints 
+tools/sec2ts: bug fix on .ts length
+psi tables python look: same semantic different syntax
+dvbobjects/dvbobjectsPMT.py: changed program_loop in stream_loop
+config: added 
+tools/data2sec: renamed oc2sec
+tools/esaudio2pes: added
+tools/esaudioinfo: added
+tools/esvideo2pes: added
+tools/esvideoinfo: added
+tools/pes2es: added
+tools/pes2ts: added
+tools/pesinfo: added                                                                 
+tools/ts2pes: added
+tools/tscbrmuxer: added
+tools/vbv: added
+
+Change log JustDVB-It 0.4:
+moved to kernel 2.6
+everything can be run without root privileges
+new directories structure
+tools/tsfilter: added new
+tools/tspidmapper: modified input syntax 
+tools/data2sec: rearchitected
+config/: added
+extern/: removed
+set-ups/: removed
+drivers/dvbcharts: removed
+
+Chane log JustDVB-It 0.3.2:
+minor buf fixes
+
+Chane log JustDVB-It 0.3.1:
+minor buf fixes
+tools/sec2tspackets: renamed sec2ts 
+
+Change log JustDVB-It 0.3:
+tools/ip2sec: added new
+tools/tspidmapper: added new
+tools/tspcrmeasure: added new
+set-ups/iptrafficdemo: added new
+tools/tsloop: enhanced with variable buffer support
+tools/tsmodder: enhanced with variable buffer support
+tools/tsfiller: enhanced with variable buffer support
+tools/tsnullshaper: enhanced with variable buffer support, read packets to susbtitute only if they are read
+extern/dvbasi/DtPlay-custom: DtPlay enhanced with variable buffer support
+extern/dvbasi/DtRecord-custom: DtRecord enhanced with variable buffer support
+extern/dvbasi/DtPlay: removed
+extern/dvbasi/DtRecord: removed
+
+Change log JustDVB-It 0.2:
+tools\tsnullshaper: added time insertion
+tools\dvbdata: more bug fixes
+tools\data2sec: added new MPEG and DVB descriptors, modules versioning from input parameters
+set-ups\cindemo: added multiple application ait example and fixed time of tables insertion
