@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 					; /* just payload */
 				} else if (temp == 2) {
 					ts_header_size = TS_PACKET_SIZE; /* only adaptation field */
-					fprintf(stderr, "adapatation field only?\n");
+					/* fprintf(stderr, "adapatation field only?\n"); */
 				} else if (temp == 3) {
 					ts_header_size += current_packet[4] + 1; /* jump the adaptation field */
 				}

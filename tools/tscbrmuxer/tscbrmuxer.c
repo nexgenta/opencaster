@@ -34,13 +34,12 @@ typedef struct list {
 	int			fd;
 	char*			filename;
 	double			bps;
-	double			output_packets;
+	double			output_packets; /* will take thousend of years to overflown at 100mbps */
 	struct list*		next; 
 } fd_list;
 
 fd_list* g_fd_list = 0;
 fd_list* g_fd_list_last = 0;
-double g_output_packets = 0;
 
 int enqueue_fd(int fd, char* filename, int bps) {
     
@@ -67,7 +66,6 @@ fd_list* choose_fd(void) {
 
 	int not_chosen = 1;
 	double min = 0;
-	double min_packets = 0;
 	double temp = 0;
 	fd_list* fd_list_index;
 	fd_list* result;
@@ -81,7 +79,6 @@ fd_list* choose_fd(void) {
 		temp = (fd_list_index->output_packets * TS_PACKET_SIZE * 8) / fd_list_index->bps;
 		if (not_chosen || temp < min) {
 			min = temp;
-			min_packets = fd_list_index->output_packets;			
 			result = fd_list_index;
 			not_chosen = 0;
 		}
@@ -90,17 +87,6 @@ fd_list* choose_fd(void) {
 	}
 	
 	result->output_packets++;
-	g_output_packets++;
-	if (g_output_packets < 0) {
-		/* total output counter will go overflow before the others counters */
-		fprintf(stderr, "Managed output counter overflow\n");	
-		fd_list_index = g_fd_list;
-		while(fd_list_index != 0) {
-			fd_list_index->output_packets -= min_packets;
-			fd_list_index = fd_list_index->next; 
-		}
-		g_output_packets = 1;
-	} 
 	return result;
 }
 
@@ -172,6 +158,12 @@ int main(int argc, char *argv[])
 				return 2;
 			}
 			byte_read = read(chosen_fd->fd, ts_packet, TS_PACKET_SIZE);
+			if (byte_read == TS_PACKET_SIZE) {
+			    memcpy(&pid, ts_packet + 1, 2);
+			    pid = ntohs(pid);
+			    pid = pid & 0x1fff;
+			    previous_cc_table[pid] = 0x10;			
+			}
 		}
 	    
 		/* check packets cc */

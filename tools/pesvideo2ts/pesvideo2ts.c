@@ -27,7 +27,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <inttypes.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <limits.h>
 
 #define MAX_PID 8192
 #define TS_HEADER_SIZE 4 
@@ -38,10 +42,16 @@
 #define SYSTEM_CLOCK 90000.0
 #define PTS_MAX 8589934592LL
 
-
 #define TIME_STAMP_SIZE 5
 
+#define SYSTEM_CLOCK_FREQUENCY 27000000
+#define PACK_HEADER_SIZE 4 
+
+#define MAX_FD 256
+
 const long long unsigned system_frequency = 27000000;
+
+
 
 int ts_payload;				/* TS packet payload counter */
 u_short pid;				/* Pid for the TS packets */
@@ -59,13 +69,17 @@ unsigned long long frames	= 0L;		/* frames counter */
 int vbv_buffer_size		= 0L;		/* size of the video buffer verifier in bit */
 unsigned long long es_input_bytes = 0;		/* input bytes of the elementary stream */
 unsigned long long es_input_bytes_old = 0;	/* input bytes of the elementary stream at previous analysis */
-unsigned long long es_output_bytes = 0;		/* output bytes of the elementary stream */
 unsigned long long ts_output_bytes = 0;		/* output bytes of the transport stream */
 int es_bitrate = 0;				/* bitrate of the input elementary stream */
 int ts_bitrate = 0;				/* bitrate of the output transport stream */
 int vbv_max = 0;				/* video buffer verifier maximum size */
 int vbv_current_size = 0;			/* video buffer verifier current size */
 int first_frame_ts_size = 0;
+unsigned long long int pts; 			/* PTS last value */
+unsigned long long int pts_delta; 		/* PTS delta increment */
+unsigned char pts_index;			/* PTS index  for the TS packets */
+int first_pts = 0;
+char filename[PATH_MAX];
 
 typedef struct queue {
 	unsigned long long	size;
@@ -134,6 +148,8 @@ void emulate_vbv_tick(void) {
 	}
 
 }
+
+
 void send_pcr_packet() {
 
 	unsigned long long pcr_base;
@@ -143,10 +159,19 @@ void send_pcr_packet() {
 	new_pcr = ((ts_output_bytes + 10) * 8 * system_frequency) / ts_bitrate;
 
 	/* fprintf(stderr, "pcr is %llu, time is %llu.%04llu sec\n", new_pcr, new_pcr / system_frequency, (new_pcr % system_frequency) / (system_frequency / 10000)); */
-	
 	if (new_pcr >  2576980377600ll) {
-	    fprintf(stderr, "WARNING PCR OVERFLOW\n");
 	    new_pcr -=  2576980377600ll; 
+	    fprintf(stderr, "ts_output_bytes before %llu\n", ts_output_bytes);
+	    fprintf(stderr, "vbv evaluation before %llu\n", (unsigned long long)(first_frame_ts_size + (((1.0 / frame_rate) * ts_bitrate * (last_frame_popped + 1)) / 8)));
+	    fprintf(stderr, "pcr loop\n");
+	    unsigned long long vbv_diff = ts_output_bytes - (first_frame_ts_size + (((1.0 / frame_rate) * ts_bitrate * (last_frame_popped + 1)) / 8));
+	    /* adjust the vbv fullness to the new ts_output_bytes value */
+	    ts_output_bytes = (((new_pcr * ts_bitrate) + (80ll * system_frequency)) / (system_frequency * 8)) - 20;
+	    last_frame_popped = 1;
+	    first_frame_ts_size = ts_output_bytes - vbv_diff - (((1.0 / frame_rate) * ts_bitrate * 2) / 8);
+	    emulate_vbv_tick();
+	    fprintf(stderr, "ts_output_bytes after %llu\n", ts_output_bytes);
+	    fprintf(stderr, "vbv evaluation after %llu\n",(unsigned long long)(first_frame_ts_size + (((1.0 / frame_rate) * ts_bitrate * (last_frame_popped + 1)) / 8)));
 	} 
 
 	/* marshal pcr */
@@ -161,11 +186,152 @@ void send_pcr_packet() {
 
 	pcr_ts_packet[3] = ts_continuity_counter | 0x20; /* continuity counter, no scrambling, only adaptation field */
       	ts_continuity_counter = (ts_continuity_counter + 1) % 0x10; /* inc. continuity counter */
-	fwrite(pcr_ts_packet, 1, TS_PACKET_SIZE, stdout);
+	write(STDOUT_FILENO, pcr_ts_packet, TS_PACKET_SIZE);
 	ts_output_bytes += TS_PACKET_SIZE;
 	
 }
 
+void stamp_ts (unsigned long long int ts, unsigned char* buffer) 
+{
+	if (buffer) {
+		buffer[0] = ((ts >> 29) & 0x0F) | 0x01;
+		buffer[1] = (ts >> 22) & 0xFF; 
+		buffer[2] = ((ts >> 14) & 0xFF ) | 0x01;
+		buffer[3] = (ts >> 7) & 0xFF;
+		buffer[4] = ((ts << 1) & 0xFF ) | 0x01;
+	}
+}
+
+unsigned long long parse_timestamp(unsigned char *buf)
+{
+	unsigned long long a1;
+	unsigned long long a2;
+	unsigned long long a3;
+	unsigned long long ts;
+
+	a1 = (buf[0] & 0x0F) >> 1;
+	a2 = ((buf[1] << 8) | buf[2]) >> 1;
+	a3 = ((buf[3] << 8) | buf[4]) >> 1;
+	ts = (a1 << 30) | (a2 << 15) | a3;
+	
+	return ts;
+}
+
+void restamp_ptsdts_and_output(void) {
+
+	/* check PTS and DTS */
+	unsigned char adapt = (ts_packet[3] >> 4) & 0x03;
+	unsigned long long time = 0;
+	unsigned long long int dts; 
+	unsigned char timestamp[TIME_STAMP_SIZE];
+	int ts_header_size = 0;
+	int pes_header_size = 0;
+	int first_packet_of_an_iframe = 0;
+	
+	if (adapt == 0) {
+		ts_header_size = TS_PACKET_SIZE; /* the packet is invalid ?*/
+		;
+	} else if (adapt == 1) {
+		ts_header_size = TS_HEADER_SIZE; /* only payload */
+	} else if (adapt == 2) { 
+		ts_header_size = TS_PACKET_SIZE; /* only adaptation field */
+	} else if (adapt == 3) {
+		ts_header_size = TS_HEADER_SIZE + ts_packet[4] + 1; /* jump the adaptation field */
+	} else {
+		ts_header_size = TS_PACKET_SIZE; /* not managed */
+	}
+			
+	/* check the time difference between first two pts and ... */
+	time = 0;
+	if (ts_header_size + 20 < TS_PACKET_SIZE) {
+		if ((ts_packet[ts_header_size] == 0x00) && (ts_packet[ts_header_size + 1] == 0x00) && (ts_packet[ts_header_size + 2] == 0x01)) { 
+			pes_header_size = ts_packet[ts_header_size + 8];
+			if ((ts_packet[ts_header_size + 3] >> 4) == 0x0E) { /* PES video stream */
+				memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+				time = parse_timestamp(timestamp);						
+				/* fprintf(stderr, "Old Video Presentation Time Stamp is: %llu, %llu.%04llu sec.\n", time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000)); */
+				if (pes_header_size > 5) {
+					memcpy(timestamp, ts_packet + ts_header_size + 14, TIME_STAMP_SIZE);
+					time = parse_timestamp(timestamp);
+					/* fprintf(stderr, "Old Video Decode Time Stamp is: %llu, %llu.%04llu sec.\n", time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000));  */
+				}					
+					
+				if (pts_index == 0) {
+					if (pes_header_size > 5) { /* if there are both dts and pts, get dts */
+						memcpy(timestamp, ts_packet + ts_header_size + 14, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+					} else { /* othewise they are the same */
+						memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+					}
+					pts_index = 1;
+					pts = time;
+				} else if (pts_index == 1) {
+					if (pes_header_size > 5) { /* if there are both dts and pts, get dts */
+						memcpy(timestamp, ts_packet + ts_header_size + 14, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+					} else { /* othewise they are the same */
+						memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+					}
+					pts_index = 2;
+					pts_delta = time - pts;
+					pts = time;
+				} else {
+					if (pes_header_size > 5) { /* if there are both dts and pts */
+						memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+						memcpy(timestamp, ts_packet + ts_header_size + 14, TIME_STAMP_SIZE);
+						time -= parse_timestamp(timestamp);
+						pts += pts_delta; /* dts goes up 1 step */
+						dts = pts;
+						stamp_ts(dts % PTS_MAX, ts_packet + ts_header_size + 14);
+						ts_packet[ts_header_size + 14] &= 0x0F; 
+						ts_packet[ts_header_size + 14] |= 0x30; 
+						/* pts goes up the same gap there was before */
+						stamp_ts((pts + time) % PTS_MAX, ts_packet + ts_header_size + 9);
+						ts_packet[ts_header_size + 9] &= 0x0F; 
+						ts_packet[ts_header_size + 9] |= 0x20; 
+						first_packet_of_an_iframe = ((ts_packet[ts_header_size + 25] & 0x38) >> 3) == 1;
+						
+					} else {
+						memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+						time = parse_timestamp(timestamp);
+						pts += pts_delta;
+						stamp_ts(pts % PTS_MAX, ts_packet + ts_header_size + 9);
+						ts_packet[ts_header_size + 9] &= 0x0F; 
+						ts_packet[ts_header_size + 9] |= 0x20;
+					}
+					
+					
+				}
+					
+				memcpy(timestamp, ts_packet + ts_header_size + 9, TIME_STAMP_SIZE);
+				time = parse_timestamp(timestamp);						
+				if (first_pts) {
+				    /* fprintf(stderr, "pesvideo2ts sync: %s new presented video frame is at: %llu, %llu.%04llu sec.", filename, time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000)); */
+				}	
+				if (pes_header_size > 5) {
+				    memcpy(timestamp, ts_packet + ts_header_size + 14, TIME_STAMP_SIZE);
+				    time = parse_timestamp(timestamp);
+				    if (first_pts) {
+				        /* fprintf(stderr, ", decode time stamp is at: %llu, %llu.%04llu sec.\n", time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000)); */
+				    }
+				} else {
+				    if (first_pts) {
+					/* fprintf(stderr, "\n"); */
+				    }
+				}
+				if (first_pts) {
+				    first_pts = 0;
+				}
+			}
+		}
+	}
+	
+    	write(STDOUT_FILENO, ts_packet, TS_PACKET_SIZE);
+
+}
 
 void send_current_packet(unsigned long long es_payload) {
 
@@ -176,7 +342,7 @@ void send_current_packet(unsigned long long es_payload) {
 
 		ts_packet[3] = ts_continuity_counter | 0x10; /* continuity counter, no scrambling, only payload */
       		ts_continuity_counter = (ts_continuity_counter + 1) % 0x10; /* inc. continuity counter */
-		fwrite(ts_packet, 1, TS_PACKET_SIZE, stdout); 
+		restamp_ptsdts_and_output();
 		ts_output_bytes += TS_PACKET_SIZE;
 		ts_payload = 0;
 		vbv_current_size += es_payload * 8;
@@ -186,7 +352,6 @@ void send_current_packet(unsigned long long es_payload) {
 		temp = ts_packet[TS_HEADER_SIZE + ts_payload - 1]; /* copy the exceeding byte */ 
 		ts_payload--;
 		send_current_packet(es_payload - 1); /* ts payload is es payload because pes header can't occuer at the end of the pes... */
-		
 		memcpy(ts_packet + 1, &pid, 2); /* pid, no pusu */
 		ts_packet[4] = temp;
 		ts_payload = 1;
@@ -205,7 +370,7 @@ void send_current_packet(unsigned long long es_payload) {
 		for ( i = TS_HEADER_SIZE + 2 ; i < TS_PACKET_SIZE - ts_payload; i++) { /* pad the packet */
 			ts_packet[i] = 0xFF;
 		}
-		fwrite(ts_packet, 1, TS_PACKET_SIZE, stdout); 
+		restamp_ptsdts_and_output();
 		ts_output_bytes += TS_PACKET_SIZE;
 		ts_payload = 0;
 		vbv_current_size += es_payload * 8;
@@ -227,7 +392,7 @@ void send_current_packet(unsigned long long es_payload) {
 	
 	// vbv control: check if the receiver video buffer can receiver the next packet, if it can't output null packets until a frame is flushed 
 	while (vbv_current_size + ((TS_PACKET_SIZE - TS_HEADER_SIZE) * 8) > vbv_max) {
-		fwrite(null_ts_packet, 1, TS_PACKET_SIZE, stdout);
+		write(STDOUT_FILENO, null_ts_packet, TS_PACKET_SIZE);
 		ts_output_bytes += TS_PACKET_SIZE;
 		emulate_vbv_tick();
 		if ( (ts_output_bytes + TS_PACKET_SIZE - old_pcr) * 8 * 1000 > PCR_DELTA * ts_bitrate ) { // pcr is needed at least every 40 ms 
@@ -270,39 +435,112 @@ unsigned long long parse_pes_ts(unsigned char *buffer)
 }
 
 
-int main(int argc, char *argv[])
-{
+FILE* openStream(char* argv[], int open_counter, FILE* file_pes[]) {
 
-	int i = 0;	
-	int byte_read = 0;
-	unsigned long long ts = 0LL;
-	unsigned long long ts_offset = 0LL;
-	
-	FILE* file_pes;				/* pes stream */
-	
-	/*  Parse args */
-	pid = MAX_PID;
-	file_pes = 0;
-	
-	if (argc > 5) {
-		file_pes = fopen(argv[1], "rb");
-		pid = atoi(argv[2]);
-		frame_rate = atoi(argv[3]);
-		vbv_max = atoi(argv[4]) * 16 * 1024; // bits
-		ts_bitrate = atoi(argv[5]);
+	FILE* result = NULL;
+	struct stat file_stat;
+
+	/* fprintf(stderr, "pesvideo2ts: opening %s...  ", argv[6 + open_counter]); */
+	if (lstat(argv[6 + open_counter], &file_stat) == 0) {
+		if (!S_ISFIFO(file_stat.st_mode)) {
+			result = fopen(argv[6 + open_counter], "rb");
+			file_pes[open_counter] = result;
+			/* fprintf(stderr, "open\n"); */
+		} else {
+		        result = file_pes[open_counter];
+		        /* fprintf(stderr, "is a fifo\n"); */
+		}
 	}
 	
-	if (file_pes == 0 || pid >= MAX_PID || argc <= 5) { 
-		fprintf(stderr, "Usage: 'pesvideo2ts file.pes pid es_framerate es_video_vbv ts_video_bitrate'\n");
+	return result;
+}
+
+void  closeStream(char* argv[], int open_counter, FILE* file_pes[]) {
+
+	struct stat file_stat;
+
+	/* fprintf(stderr, "pesvideo2ts: closing %s...  ", argv[6 + open_counter]); */
+	if (lstat(argv[6 + open_counter], &file_stat) == 0) {
+		if (!S_ISFIFO(file_stat.st_mode)) {
+			fclose(file_pes[open_counter]);
+			/* fprintf(stderr, "closed\n"); */
+		} else {
+		        /* fprintf(stderr, "is a fifo\n"); */
+		}
+	} else {
+	    fclose(file_pes[open_counter]);
+	    /* fprintf(stderr, "closed but now is missing\n"); */
+	}
+	
+	
+}
+
+
+int main(int argc, char *argv[])
+{
+	int i = 0;	
+	int open_counter = 0;
+	int loop_on = 0;
+	int byte_read = 0;
+	int total_bytes = 0;
+	/* unsigned long long ts_offset = 0LL; */	
+	FILE* current_file_pes = NULL;
+	pid = MAX_PID;
+	FILE* file_pes[MAX_FD];
+	memset(file_pes, 0, sizeof(FILE*) * MAX_FD);
+	
+	if (argc >= 7) {
+		pid = atoi(argv[1]);
+		frame_rate = atoi(argv[2]);
+		vbv_max = atoi(argv[3]) * 16 * 1024; // bits
+		ts_bitrate = atoi(argv[4]);
+		loop_on = atoi(argv[5]) > 0;
+		file_pes[0] = fopen(argv[6], "rb");		
+		if (file_pes[0] == NULL) {
+		    fprintf(stderr, "pesvideo2ts: failed to open %s\n", argv[6]);
+		    return 0;
+		} else {
+		    snprintf(filename, PATH_MAX, "%s", argv[6]);
+		    current_file_pes = file_pes[0];
+		}
+		if (pid >= MAX_PID) {
+		    fprintf(stderr, "pesvideo2ts: pid has to be smaller than %d\n", MAX_PID);
+		}
+	}
+	
+	/* fifo are all open at the begin */
+	for (i = 7; i < argc; i++) {
+	    struct stat file_stat;
+	    if (lstat(argv[i], &file_stat) == 0) { 
+		if (S_ISFIFO(file_stat.st_mode)) {
+		    file_pes[i - 6] = fopen(argv[i], "rb");
+		    if (file_pes[i - 6] == NULL) {
+		        fprintf(stderr, "pesvideo2ts: failed to open %s\n", argv[i]);
+			return 0;
+		    } else {
+		        fprintf(stderr, "pesvideo2ts: opens also fifo %s\n", argv[i]);
+		    }
+		} else {
+		    file_pes[i - 6] = NULL;
+		}
+	    } else {
+		file_pes[i - 6] = NULL;
+	    }
+	}
+	
+	if (argc < 7) { 
+		fprintf(stderr, "Usage: 'pesvideo2ts pid es_framerate es_video_vbv ts_video_bitrate loop_on input1.pes [input2.pes ... input%d.pes]'\n", MAX_FD);
 		fprintf(stderr, " where pid is bounded from 1 to 8191\n");
 		fprintf(stderr, " es_framerate is elementary stream frame rate\n");
 		fprintf(stderr, " es_video_vbv is elementary stream vbv\n");
 		fprintf(stderr, " ts_video_bitrate is the output bitrate desired\n");
-		
-		return 2;
-	} else {
-		pid = htons(pid);
-	}
+		fprintf(stderr, " if loop_on is 1 input file are read on loop\n");
+		fprintf(stderr, "if the first file of the loop is missing the loop ends\n");
+		fprintf(stderr, " input files can be changed at runtime if not fifo\n"); /* this limit comes from linux system calls, I am not sure but aix or freebsd won't have it */
+		return 0;
+	} 
+	
+	pid = htons(pid);
 	
 	/* Set some init. values */
 	ts_payload = 0;
@@ -327,23 +565,78 @@ int main(int argc, char *argv[])
 	pcr_ts_packet[3] = 0x20; /* only adaptation field, cc starts from zero */
 	pcr_ts_packet[4] = 183; /* again because there is only adaptation field */
 	pcr_ts_packet[5] = 0x10; /* there is only pcr */
+	
+	ts_output_bytes = 0;
 
 	/* Set the pcr as the first packets helps decoder to learn the new time as soon as possible */
 	/* also minimize the distance from a previous pcr */
 	send_pcr_packet();
 		
 	/* Process the PES file */
-	byte_read = fread(look_ahead_buffer, 1, PES_HEADER_SIZE, file_pes);
+	byte_read = fread(look_ahead_buffer, 1, PES_HEADER_SIZE, current_file_pes);
+	if (byte_read > 0) {
+	    total_bytes += byte_read;
+	}
 	es_input_bytes = byte_read;
 	look_ahead_size = byte_read;
 	last_frame_index = 0;
-	while (byte_read || look_ahead_size) {
+	int head_missing = 0;
+	while (!head_missing) {
+	    while ((byte_read || look_ahead_size) && !head_missing) {
 
 		/* Fill the look ahead buffer */
-		if (look_ahead_size < PES_HEADER_SIZE) {
-			byte_read = fread(look_ahead_buffer + look_ahead_size, 1, 1, file_pes);
+		if (look_ahead_size < PES_HEADER_SIZE && current_file_pes != NULL) {
+			byte_read = fread(look_ahead_buffer + look_ahead_size, 1, 1, current_file_pes);
+			if (byte_read > 0) {
+			    total_bytes += byte_read;
+			} else {
+			    /* fprintf(stderr, "pesvideo2ts: warning: processing read was %d, look ahead is %d\n", byte_read, look_ahead_size); */
+			}
+			if (byte_read <= 0 && loop_on) {
+			
+			    closeStream(argv, open_counter, file_pes);
+			    current_file_pes = NULL;
+			    open_counter++;
+			    
+			    /*fprintf(stderr, "pesvideo2ts: %s total bytes %d\n", filename, total_bytes); */
+			    			    			    
+			    if (argc >= 7 + open_counter) {
+			    	current_file_pes = openStream(argv, open_counter, file_pes);
+				if (current_file_pes == NULL) {
+				    fprintf(stderr, "pesvideo2ts: failed to open %s\n", argv[6 + open_counter]);
+				} else {
+				    snprintf(filename, PATH_MAX, "%s", argv[6 + open_counter]);
+				}
+			    }
+			    
+			    if (current_file_pes == NULL) {
+				open_counter = 0;
+				current_file_pes = openStream(argv, open_counter, file_pes);
+				if (current_file_pes == NULL) {
+				    fprintf(stderr, "pesvideo2ts failed to open %s\n", argv[6 + open_counter]);
+				} else {
+				    snprintf(filename, PATH_MAX, "%s", argv[6 + open_counter]);
+				}
+			    }
+	    
+			    total_bytes = 0;
+			    if (current_file_pes != NULL) {
+				byte_read = fread(look_ahead_buffer + look_ahead_size, 1, 1, current_file_pes);
+				if (byte_read > 0) {
+				    total_bytes += byte_read; 
+				    first_pts = 1;
+				} else {
+				    /* fprintf(stderr, "pesvideo2ts: restarting read was %d, look ahead is %d\n", byte_read, look_ahead_size); */
+				    head_missing = 1;
+				}
+			    } else {
+				fprintf(stderr, "pesvideo2ts: first file of the loop is missing\n");
+				byte_read = 0;
+				head_missing = 1;
+			    }
+			}
 			look_ahead_size += byte_read;
-			es_input_bytes += byte_read;
+			es_input_bytes += byte_read; /* it will overflown at 100mbps after countless years */
 		}
 		
 		/* PES header detected? */
@@ -370,7 +663,9 @@ int main(int argc, char *argv[])
 					*/
 				}
 			}
-			frames++;
+			if (frames == 0) {
+			    frames++;
+			}
 			last_frame_index = es_input_bytes;
 
 			/* Send current packet if there's anything ready */
@@ -385,7 +680,7 @@ int main(int argc, char *argv[])
 		} 
 	
 		/* Fill the current packet */
-		if (look_ahead_size > 0) {
+		if (look_ahead_size > 0 && ((loop_on && byte_read > 0) || (!loop_on)) ) {
 	
 			/* Move a packet from the lookahead to the current packet */
 			ts_packet[TS_HEADER_SIZE + ts_payload] = look_ahead_buffer[0];
@@ -410,10 +705,56 @@ int main(int argc, char *argv[])
 		if (byte_read == 0 && look_ahead_size == 0 && ts_payload) {
 			send_current_packet(es_input_bytes - es_input_bytes_old);
 			es_input_bytes_old = es_input_bytes;
+		}	
+	    }
+	
+	/* if are processing fifo and we are on loop, let's block */
+	for (i = 6; i < argc && loop_on; i++) {
+	    struct stat file_stat;
+	    if (lstat(argv[i], &file_stat) == 0) { 
+		if (S_ISFIFO(file_stat.st_mode)) {
+		    fclose(file_pes[i - 6]);
 		}
-		
-		
+	    }
 	}
+	for (i = 6; i < argc && loop_on; i++) {
+	    struct stat file_stat;
+	    if (lstat(argv[i], &file_stat) == 0) { 
+		if (S_ISFIFO(file_stat.st_mode)) {
+		    file_pes[i - 6] = fopen(argv[i], "rb");
+		    if (file_pes[i - 6] == NULL) {
+		        fprintf(stderr, "pesvideo2ts: failed to re-open %s\n", argv[i]);
+			return 0;
+		    } else {
+		        fprintf(stderr, "pesvideo2ts: re-opens fifo %s\n", argv[i]);
+		        if (i == 6) {
+		    	    head_missing = 0;
+		        }
+		    }
+		} else {
+		    file_pes[i - 6] = NULL;
+		}
+	    } else {
+		file_pes[i - 6] = NULL;
+	    }
+	}
+	
+	current_file_pes = file_pes[0];
+	
+	
+	if (!head_missing) {
+	    /*	
+	    byte_read = fread(look_ahead_buffer, 1, PES_HEADER_SIZE, current_file_pes);
+	    if (byte_read > 0) {
+		total_bytes += byte_read;
+		look_ahead_size += byte_read;
+		es_input_bytes += byte_read;
+	    }
+	    */
+	    first_pts = 1;
+	}
+	
+    }
 
-	return 0;
+    return 0;
 }

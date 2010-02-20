@@ -72,6 +72,11 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "Can't find file %s\n", argv[open_file]);
 				return 2;
 			}
+			byte_read = read(fd_ts, packet, TS_PACKET_SIZE);
+			if (byte_read <= 0) {
+			    return 2;
+			}
+
 		}
 	    
 		/* check packets cc */

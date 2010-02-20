@@ -134,7 +134,7 @@ class Module(DVBobject):
     def __outputFilename(self, input_path, output_dir, blockNumber):
         input_basename = os.path.basename(input_path)
         input_stem = os.path.splitext(input_basename)[0]
-        output_basename = "%s_%03d.%s" % (
+        output_basename = "%s_%06d.%s" % (
             input_stem,
             blockNumber,
             "sec",

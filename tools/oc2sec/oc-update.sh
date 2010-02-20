@@ -77,7 +77,8 @@ then
     do
         /usr/local/bin/sec2ts $PID < $file >> $TEMP_DIR_SEC/temp_ts
     done
-    mv $TEMP_DIR_SEC/temp_ts $OCDIR.ts
+    /usr/local/bin/tsfixcc $TEMP_DIR_SEC/temp_ts > $OCDIR.ts
+    rm $TEMP_DIR_SEC/temp_ts 
 else
     # All the single section files are enqueued in a single file, padding will occur only at the end of the last section
     for file in $TEMP_DIR_SEC/*.sec
@@ -90,10 +91,8 @@ fi
 # Delete temp files
 if [ "$NO_DELETE_TEMP" = "0" ]
 then
-/bin/rm $TEMP_DIR_MOD/*
-/bin/rm $TEMP_DIR_SEC/*
-/bin/rmdir $TEMP_DIR_MOD
-/bin/rmdir $TEMP_DIR_SEC
+/bin/rm -rf $TEMP_DIR_MOD
+/bin/rm -rf $TEMP_DIR_SEC
 else
 /bin/echo "Modules generated in $TEMP_DIR_MOD were not delete"
 /bin/echo "Sections generated in $TEMP_DIR_SEC were not delete"

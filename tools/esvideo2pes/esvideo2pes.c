@@ -31,6 +31,7 @@
 #define SYSTEM_CLOCK 90000.0
 #define ES_HEADER_SIZE 4
 #define ES_HEADER_MAX_SIZE ES_HEADER_SIZE * 2
+#define HEADER_BUFFER_MAX_SIZE 1024
 #define PTS_MAX 8589934592LL
 
 const float frame_rate[16] = {
@@ -75,40 +76,37 @@ int main(int argc, char *argv[])
 	int firstframe;
 	int byte_read;
 	FILE* file_es;
-	/*
-	unsigned int time_reference_next_frame = 0;
-	*/
+	
+	unsigned int time_reference = 0;
 	unsigned long long int dts;
+	unsigned long long int dts_base;
 	unsigned long long int pts;
-	unsigned long long int ts;
+	unsigned long long int pts_limit = 0ll;
+	unsigned long long int pts_first_gop = 0ll;
+	unsigned long long int pts_a_gop = 0ll;
+	unsigned long long int frame_counter = 0;
 	unsigned char stream_id = 224;
 	unsigned char pes_header[PES_HEADER_SIZE];
 	unsigned char es_header[ES_HEADER_SIZE  + 8];
 	unsigned int pts_step = 0;
-	unsigned int b_frame_number = 0;
-
-	ts = 0;
+	unsigned char header_buffer[HEADER_BUFFER_MAX_SIZE];
+	unsigned int header_buffer_size = 0;
 	
 	/* Open pes file */
 	if (argc > 1) {
 		file_es = fopen(argv[1], "rb");
 	}
-	
+
 	if (argc > 2) {
-		b_frame_number = atoi(argv[2]);
-	}
-
+		pts_limit = atol(argv[2]);
+	} 
+		
 	if (argc > 3) {
-		ts = atoi(argv[3]);
-	} 
-	
-	if (argc > 4) {
-		stream_id = atoi(argv[4]);
+		stream_id = atoi(argv[3]);
 	} 
 
-	if (argc < 3){
-		fprintf(stderr, "Usage: 'esvideo2pes video.es B-frames_number [offset [stream_id]] '\n");
-		fprintf(stderr, "pts offset can be used for audio synch, usually not needed\n");
+	if (argc < 2){
+		fprintf(stderr, "Usage: 'esvideo2pes video.es [pts_limit] [stream_id]] '\n");
 		fprintf(stderr, "Video stream id default is 224\n");
 		return 2;
 	}
@@ -126,15 +124,17 @@ int main(int argc, char *argv[])
 	pes_header[4] = 0x00;
 	pes_header[5] = 0x00;
 	pes_header[6] = 0x80; /* no scrambling, no priority, no alignment defined, no copyright, no copy */
-	pes_header[7] = 0x80; /* pts, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
-	pes_header[8] = 0x05; /* pts */ 
+	pes_header[7] = 0xC0; /* pts and dts, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
+	pes_header[8] = 0x0A; /* pts and dts size*/ 
 
 	/* Start the process */
+
 	bframe = 1;
 	firstframe = 1;
 	skip_next_header = 0;
 	read_fps = 0;
 	
+	/* get stream info, output first pes header */
 	byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
 	if (es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && es_header[3] == 0xB3) { 
 					
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 				exit(2);
 			} else {
 				pts_step = (int) (SYSTEM_CLOCK / frame_rate[es_header[3] & 0x0F]); /* take only integer part */
-				fprintf(stderr, "frame per second are: %f\n", frame_rate[es_header[3] & 0x0F]);
+				/* fprintf(stderr, "frame per second are: %f\n", frame_rate[es_header[3] & 0x0F]); */
 
 			}
 		} else {
@@ -154,101 +154,42 @@ int main(int argc, char *argv[])
 			exit(2);
 		}
 		bitrate = ((es_header[ES_HEADER_SIZE + 4] << 10) | (es_header[ES_HEADER_SIZE + 5] << 2) | ((es_header[ES_HEADER_SIZE + 6] & 0xC0) >> 6)) * 400;
-		fprintf(stderr, "bit per second are: %d\n", bitrate);	
-		read_fps = 1;
+		/* fprintf(stderr, "bit per second are: %d\n", bitrate); */
+		
+		dts = 0;
+		dts_base = 0;
+		pts = pts_step;
+
+		pes_header[7] = 0xC0; /* pts and dts, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
+		pes_header[8] = 0x0A; /* pts and dts size*/ 		
+		stamp_ts(pts % PTS_MAX, pes_header + 9);
+		pes_header[9] &= 0x0F;
+		pes_header[9] |= 0x30;
+		stamp_ts(dts % PTS_MAX, pes_header + 14);
+		pes_header[14] &= 0x0F;
+		pes_header[14] |= 0x10;
+
+		fwrite(pes_header, 1, PES_HEADER_SIZE, stdout);
+		frame_counter++;
+
+		fwrite(es_header, 1, ES_HEADER_SIZE + 8, stdout);
+		byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
 		
 	} else  {
 		fprintf(stderr, "elementary stream video should start with a sequence video header\n");
 		exit(2);
 	}	
 	
+	/* skip nex start header */
 	while(byte_read) {
 		
-		if ( !skip_next_header && es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && (es_header[3] == 0x00 ||  es_header[3] == 0xB3 || es_header[3] == 0xB8 )) { 
-					
-			if (es_header[3] == 0x00 ) {
-				byte_read = fread(es_header + ES_HEADER_SIZE, 1, ES_HEADER_SIZE, file_es);
-				bframe = ((es_header[5] & 0x38) >> 3);
-				bframe = (bframe == 0x03);
-				
-				/*
-				time_reference_next_frame = (es_header[4] << 2) | ((es_header[5] & 0xC0) >> 6 );
-				fprintf(stderr, "next time reference is %d\n", time_reference_next_frame);
-				*/
-				
-			} else { /* next one should be an I frame */
-						
-				bframe = 0; 
-				byte_read = 0; 
-				skip_next_header = 1;
-			}
-			
-			if (!bframe) {
-				bframe = 1;
-				pes_header[7] = 0xC0; /* add dts flag */
-				pes_header[8] = 0x0A; /* pts and dts */			
-				
-				/* pts is delayed */
-				if (!firstframe) {
-					pts = ts + pts_step * (b_frame_number + 1);
-				} else {
-					pts = ts + pts_step;
-					firstframe = 0;
-				}
-				if (pts > PTS_MAX) {
-					pts -= PTS_MAX;
-				}
-				stamp_ts(pts, pes_header + 9);
-				pes_header[9] &= 0x0F;
-				pes_header[9] |= 0x30;
-			
-				/* dts is now */
-				dts = ts;
-				stamp_ts(dts, pes_header + 14);
-				pes_header[14] &= 0x0F;
-				pes_header[14] |= 0x10;
-				
-				/* go on count from now */
-				ts += pts_step;
-				if (ts > PTS_MAX) {
-					ts -= PTS_MAX;
-				}
-				fwrite(pes_header, 1, PES_HEADER_SIZE, stdout);
-			} else {
-				pes_header[7] = 0x80; /* only pts */
-				pes_header[8] = 0x05; /* pts */
-
-				/* pts is now*/
-				pts = ts;
-				stamp_ts(pts, pes_header + 9);
-				pes_header[9] &= 0x0F;
-				pes_header[9] |= 0x20;
-								
-				ts += pts_step;
-				if (ts > PTS_MAX) {
-					ts -= PTS_MAX;
-				}	
-				fwrite(pes_header, 1, PES_HEADER_SIZE - 5, stdout);
-
-			}
-			if (read_fps) {
-			    fwrite(es_header, 1, ES_HEADER_SIZE + 8, stdout);
-			    read_fps = 0;
-			} else {
-				if (byte_read) {
-				    fwrite(es_header, 1, ES_HEADER_MAX_SIZE, stdout);
-				} else {
-				    fwrite(es_header, 1, ES_HEADER_SIZE, stdout);			
-				}
-			}
-			byte_read += fread(es_header, 1, ES_HEADER_SIZE, file_es);
+		if (es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && es_header[3] == 0x00) { 
 		
-		} else if ( skip_next_header && es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && es_header[3] == 0x00) { 
-		
-			skip_next_header = 0;
+			/* pes header already written, just count dts */
 			fwrite(es_header, 1, ES_HEADER_SIZE, stdout);
-			byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
-			
+			dts += pts_step;
+			byte_read = 0;
+		
 		} else {
 		
 			fwrite(es_header, 1, 1, stdout);
@@ -258,8 +199,133 @@ int main(int argc, char *argv[])
 			byte_read = fread(es_header + 3, 1, 1, file_es);
 			
 		}
-
+		
 	}
+
+	byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
+	while(byte_read) {
+		
+		if (es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && es_header[3] == 0x00) { 
+		    
+			fread(es_header + ES_HEADER_SIZE, 1, ES_HEADER_SIZE, file_es);
+			
+			time_reference = (es_header[4] << 2) | ((es_header[5] & 0xC0) >> 6 );
+			bframe = (es_header[5] & 0x38) >> 3;
+			bframe = (bframe == 0x03);
+			
+			pts = dts_base + (time_reference * pts_step) +  pts_step; 
+			if (!bframe) {
+				pes_header[7] = 0xC0; /* pts and dts, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
+				pes_header[8] = 0x0A; /* pts and dts size*/ 
+				stamp_ts(pts % PTS_MAX, pes_header + 9);
+				pes_header[9] &= 0x0F;
+				pes_header[9] |= 0x30;
+				stamp_ts(dts % PTS_MAX, pes_header + 14);
+				pes_header[14] &= 0x0F;
+				pes_header[14] |= 0x10;
+				fwrite(pes_header, 1, PES_HEADER_SIZE, stdout);
+				frame_counter++;
+
+			} else {
+				pes_header[7] = 0x80; /* pts only, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
+				pes_header[8] = 0x05; /* pts size*/ 
+				stamp_ts(pts % PTS_MAX, pes_header + 9);
+				pes_header[9] &= 0x0F;
+				pes_header[9] |= 0x30;
+				fwrite(pes_header, 1, PES_HEADER_SIZE - 5, stdout);
+				frame_counter++;
+				
+			}
+			
+			fwrite(es_header, 1, ES_HEADER_MAX_SIZE, stdout);
+			dts += pts_step;
+			byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
+			
+		} else if (es_header[0] == 0x00 && es_header[1] == 0x00 && es_header[2] == 0x01 && es_header[3] == 0xB3) {
+			
+			/* need to know the time reference, look for the next start header*/
+			memcpy(header_buffer, es_header, ES_HEADER_SIZE);
+			header_buffer_size = ES_HEADER_SIZE;
+			byte_read = fread(header_buffer + header_buffer_size, 1, ES_HEADER_SIZE, file_es);
+			header_buffer_size += ES_HEADER_SIZE;
+			
+
+			while(byte_read && header_buffer_size < HEADER_BUFFER_MAX_SIZE - 4) {
+			
+				if (header_buffer[header_buffer_size - 4] == 0x00 && header_buffer[header_buffer_size - 3] == 0x00 && header_buffer[header_buffer_size - 2] == 0x01 && header_buffer[header_buffer_size - 1] == 0x00) { 
+
+				    byte_read = fread(header_buffer + header_buffer_size, 1, 2, file_es);
+				    header_buffer_size += 2;
+				    
+				    time_reference = (header_buffer[header_buffer_size - 2] << 2) | ((header_buffer[header_buffer_size - 1] & 0xC0) >> 6 );
+				    /* fprintf(stderr, "temporal reference is %d\n", time_reference); */
+				    byte_read = 0;
+				    
+				} else {
+		
+				    byte_read = fread(header_buffer + header_buffer_size, 1, 1, file_es);
+				    header_buffer_size += 1;
+				    
+				}
+			}
+			
+			if (header_buffer_size >= HEADER_BUFFER_MAX_SIZE - 4) {
+				fprintf(stderr, "elementary stream header too verbose or corrupted, out of lookahead parser buffer\n");
+				exit(2);
+			} 
+
+			dts_base = dts;
+			pts = dts_base + (time_reference * pts_step) +  pts_step; 
+
+			byte_read = 1;
+			if (pts_limit > 0ll && pts_first_gop > 0ll && pts_a_gop > 0ll && pts > pts_first_gop) {
+			    if (pts - pts_first_gop + pts_a_gop >= pts_limit - pts_first_gop) {
+				byte_read = 0;
+			    } 
+			}
+
+			if (byte_read) {
+			    pes_header[7] = 0xC0; /* pts and dts, no escr, no es rate, no dsm trick, no extension flag, no additional copy info, no crc flag */
+			    pes_header[8] = 0x0A; /* pts and dts size*/ 
+			    stamp_ts(pts % PTS_MAX, pes_header + 9);
+			    pes_header[9] &= 0x0F;
+			    pes_header[9] |= 0x30;
+			    stamp_ts(dts % PTS_MAX, pes_header + 14);
+			    pes_header[14] &= 0x0F;
+			    pes_header[14] |= 0x10;
+			    fwrite(pes_header, 1, PES_HEADER_SIZE, stdout);
+			    frame_counter++;
+
+			    if (pts_first_gop == 0ll && pts > pts_step) {
+				pts_first_gop = dts;
+			        /* fprintf(stderr, "first gop pts length is %llu\n", pts_first_gop); */
+			    } else if (pts_first_gop > 0 && pts_a_gop == 0ll) {
+				pts_a_gop = dts - pts_first_gop;
+			        /* fprintf(stderr, "a gop pts length is %llu\n", pts_a_gop); */ 
+			    }
+
+		    		
+			    fwrite(header_buffer, 1, header_buffer_size, stdout);
+			    header_buffer_size = 0;
+			    dts += pts_step;
+			    byte_read = fread(es_header, 1, ES_HEADER_SIZE, file_es);
+			}
+	
+		} else {
+		
+			fwrite(es_header, 1, 1, stdout);
+			es_header[0] = es_header[1];
+			es_header[1] = es_header[2];
+			es_header[2] = es_header[3];
+			byte_read = fread(es_header + 3, 1, 1, file_es);
+			
+		}
+		
+		
+	}
+	
+	/*fprintf(stderr, "frames are %llu, last pts is %llu\n", frame_counter, frame_counter * 3600);*/
+	fprintf(stderr, "%llu\n", frame_counter * 3600);
 
 	return 0;
 }

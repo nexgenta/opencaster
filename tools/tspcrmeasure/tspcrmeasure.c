@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 	int fd_ts;			/* File descriptor of ts file */
 	u_short pid;
 	int byte_read;
-	int pcr_ext = 0;
+	unsigned int pcr_ext = 0;
 	unsigned int ibits = 0;
 	unsigned long long int pcr_base = 0;					
 	unsigned long long int ts_packet_count;
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 	unsigned long long int new_pcr_index = 0;	
 	unsigned long long int pid_pcr_table[MAX_PID];	/* PCR table for the TS packets */
 	unsigned long long int pid_pcr_index_table[MAX_PID];	/* PCR index table for the TS packets */
-	u_char ts_packet[TS_PACKET_SIZE];/* TS packet */
+	unsigned char ts_packet[TS_PACKET_SIZE];/* TS packet */
 
 	/* Open ts file */
 	if (argc == 3)
@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
 	}
 	
 	/* Start to process the file */
-	memset(pid_pcr_table, 0,  MAX_PID*(sizeof(long long int)));	
-	memset(pid_pcr_index_table, 0,  MAX_PID*(sizeof(long long int)));
+	memset(pid_pcr_table, 0,  MAX_PID*(sizeof(unsigned long long int)));	
+	memset(pid_pcr_index_table, 0,  MAX_PID*(sizeof(unsigned long long int)));
 	ts_packet_count = 0;
 	byte_read = 1;
 	while(byte_read) {
@@ -78,18 +78,26 @@ int main(int argc, char *argv[])
 	    pid = pid & 0x1fff;
 	    if (pid < MAX_PID) {
 		if ((ts_packet[3] & 0x20) && (ts_packet[4] != 0) && (ts_packet[5] & 0x10)) { /* there is a pcr field */
-		    pcr_base = ((ts_packet[6] << 25) | (ts_packet[7] << 17) | (ts_packet[8] << 9) | (ts_packet[9] << 1)) + (ts_packet[10] >> 7);
-		    pcr_ext = ((ts_packet[10] & 1) << 8) | ts_packet[11];
+		    pcr_base = (((unsigned long long int)ts_packet[6]) << 25) + (ts_packet[7] << 17) + (ts_packet[8] << 9) + (ts_packet[9] << 1) + (ts_packet[10] >> 7);
+		    pcr_ext = ((ts_packet[10] & 1) << 8) + ts_packet[11];
 		    if (pid_pcr_table[pid] == 0) { 
 			pid_pcr_table[pid] = pcr_base * 300 + pcr_ext;
 			pid_pcr_index_table[pid] = (ts_packet_count * TS_PACKET_SIZE) + 10;
+			fprintf(stdout, "%llu: pid %d, new pcr is %llu (%f sec)\n",
+					pid_pcr_index_table[pid],
+					pid, 
+					pid_pcr_table[pid],
+					((double)(pid_pcr_table[pid]) / SYSTEM_CLOCK_FREQUENCY)
+				);
+
 		    } else { 
-			new_pcr = pcr_base * 300 + pcr_ext;						
+			new_pcr = pcr_base * 300 + pcr_ext;
 			new_pcr_index = (ts_packet_count * TS_PACKET_SIZE) + 10;
-			fprintf(stdout, "%llu: pid %d, new pcr is %llu, pcr delta is %llu, (%f ms), indices delta is %llu bytes,( %f ms), pcr accuracy is %.10f, instant ts bit rate is %.10f\n", 
+			fprintf(stdout, "%llu: pid %d, new pcr is %llu (%f sec), pcr delta is %llu, (%f ms), indices delta is %llu bytes,( %f ms), pcr accuracy is %.10f, instant ts bit rate is %.10f\n", 
 					new_pcr_index,
 					pid, 
 					new_pcr,
+					((double)(new_pcr) / SYSTEM_CLOCK_FREQUENCY),
 					new_pcr - pid_pcr_table[pid],
 					((double)((new_pcr - pid_pcr_table[pid]) * 1000)) / SYSTEM_CLOCK_FREQUENCY,
 					new_pcr_index - pid_pcr_index_table[pid],

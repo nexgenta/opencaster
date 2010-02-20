@@ -31,6 +31,8 @@
 #define TS_PACKET_SIZE 188
 #define MAX_PIDS 8192
 #define TDT_PID 20
+#define TDT_TABLE_ID 0x70
+#define TOT_TABLE_ID 0x73
 
 void Usage (void) {
 	fprintf(stderr, "Usage: 'tstdt input.ts [b:buffer_size] '\n");
@@ -81,11 +83,12 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 
-	/* Start to process the input */	
-	while(1) {
+	/* Start to process the input */
+	int bytes = 1;
+	while(bytes != 0) {
 	
 		/* Read packets */
-		read(fd_ts, packet_buffer, buffer_size);
+		bytes = read(fd_ts, packet_buffer, buffer_size);
 	  
 		/* Check if it's a tdt packet */ 
 		for (i = 0; i < buffer_size; i += TS_PACKET_SIZE) {
@@ -97,17 +100,15 @@ int main(int argc, char *argv[])
 				tim = time(NULL);
 				now = gmtime(&tim);
 				if (now != NULL) {
-
 					/* convert date into modified julian */
 					if ((now->tm_mon + 1 == 1) ||  (now->tm_mon + 1  == 2)) {
 						l = 1;
-					} else {
+				} else {
 						l = 0;
 					}
 					MJD = 14956 + now->tm_mday + (unsigned short)((now->tm_year - l) * 365.25f) + (unsigned short)((now->tm_mon + 1 + 1 + l * 12) * 30.6001f); 
 					MJD = htons(MJD);
 					memcpy(current_packet + 8, &MJD, 2); 
-
 					/* convert time */
 					hour = (now->tm_hour / 10) << 4 | (now->tm_hour % 10);
 					minute = (now->tm_min / 10) << 4 | (now->tm_min % 10);
@@ -120,7 +121,9 @@ int main(int argc, char *argv[])
 		}
 
 		/* Write packets */
-		write(STDOUT_FILENO, packet_buffer, buffer_size);
+		if (bytes != 0) {
+			write(STDOUT_FILENO, packet_buffer, buffer_size);
+		}
 
 	}
 	

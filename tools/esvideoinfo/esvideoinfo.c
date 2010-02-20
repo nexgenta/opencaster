@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 				fprintf(stdout, "bitrate: %dbs, ", bitrated);
 			}
 			
-			vbv_buffer_size = ((es_header[6] & 0x0F) << 6) | ((es_header[7] & 0xFC) >> 2);
+			vbv_buffer_size = ((es_header[6] & 0x1F) << 5) | ((es_header[7] & 0xF8) >> 3); 
 			fprintf(stdout, "vbv buffer size: %d, ", vbv_buffer_size);
 			
 			constrained = (es_header[7] & 0x04) >> 2;

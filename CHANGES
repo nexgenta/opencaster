@@ -1,26 +1,71 @@
-OpenCaster 1.0 30/6/2008
+10/06/2009
 
 Lorenzo Pallara (l.pallara@avalpa.com)
+ 
+Known bugs and issues:
+- tools/ip2sec: there are compatibility problems with recent libpcap
 
-Known bugs:
-tools/tstdt: is it necessary to change section version? it doesn't but some boxes seem to complain
-tools/tsmodder: to manage small bit rate shouldn't use tsloop
-tools/tsloop: loop functionalties need be factorized and put as a library, null packet also
-tools/ip2sec: there are compatibility problems with recent libpcap
-tools/esvideo2pes: uses a fixed GOP, can be rewritten to manage dynamically changing GOP, that's actually not good for CBRness
+Change log OpenCaster 2.0:
+- tools/tsinputswitch: added
+- tools/tstcpsend: added
+- tools/tstcpreceive: added
+- tools/pesclock: added (this deserved the major because enable OpenCaster to act as pes playout)
+- tools/tstimeout: added
+- tools/pesvideo2ts: fifo support
+- tools/pesaudio2ts: fifo support and synchornization with extrenal video file length
+- tools/esvideo2pes: video length output file added, added math to manage pts/dts round up
+- tools/esaudio2pes: added math to manage pts round up
+- tools/ts2pes: reduced 
+- tools/tspcrstamp: bug fix typo
+- tools/esvideoinfo: fixed parse error 
+- tools/vbv: removed wrong second fprintf, fixed parse error
+- libs/dvbobjects/dvbobjects/* : some reserved bit were signalled wrong
+- libs/dvbobjects/dvbobjects/MPEG/Descriptors.py: larger network name size was used
+- libs/dvbobjects/dvbobjects/MPEG/Descriptors.py: descriptors added
+- libs/dvbobjects/dvbobjects/MPEG/EBUTeletext.py: added
+
+Change log OpenCaster 1.3:
+- tools/esvideo2pes: manage dynamic GOP, added limit to cut audio at the end
+- tools/esaudio2pes: pts increment is not constant, quaility improved, added limit to cut audio at the end
+- tools/pesvideo2ts: added pts restamp for loop
+- tools/pesaudio2ts: added pts restamp for loop
+- tools/tspcrstamp: added 
+- tools/tstimedwrite: added
+- tools/tspcrmeasure: bug fix typo
+
+Change log OpenCaster 1.2:
+- libs/dvbobjects/dvbobjects/DVB/Descriptors.py: add AC3 and EPG descriptors by Antoni Roszak (a.roszak@osmosys.tv)
+- tools/oc2sec/oc-update.sh: bug fix on very big carousel temporary directory clean
+- tools/ts2sec: added
+- tools/tsudpreceive: added
+- tools/tsudpsend: added (enable IPTV output)
+- tools/dsmcc-receive: added
+- tools/tsstamp: changed usage print
+
+Change log OpenCaster 1.1:
+- libs/dvbobjects/dvbobjects/MPEG/DVBH_Descriptors.py: merged from fatcaps v0.5 by Andreas Berger (berger@ftw.au)
+- libs/dvbobjects/dvbobjects/PSI/INT.py: merged from fatcaps v0.5 Andreas Berger (berger@ftw.au)
+- libs/dvbobjects/dvbojects/MPEG/Descriptors.py: added data descriptors by Kovacs Balazs (basq@vendegvaro.hu)
+- tools/tscbrmuxer: bug fix on continuity counter for sections of a single ts packet
+- tools/tsloop: bug fix first packet repeated twice
+- libs/dvbobjects/dvbobjects/PSI/PAT.py: bug fix on private indicator
+- tools/oc-update.sh: dsmcc padding option continuity counter is broken fixed with tsfixcc
+- tools/tsfixcc: added, increase cc of very packet, doesn't account for adaptation field, to use only with sections
+- tools/tspcrmeasure: print bug fix on the first pcr byte
+- tools/esaudio2pes: support for audio frame padding
 
 Change log OpenCaster 1.0:
 - tools/esvideo2pes: bug fixed, was working if GOP had 2 B-frame
 - tools/pesvideo2ts: added a pcr packet at the begin
-- tools/tsstamp: added support for pts and dts restamp to manage loops
+- tools/tsstamp: added support for pts and dts restamp to manage loops (this deserved the major because enabled an easy use of video files and the manual examples to be written)
 
 Change log JustDVB-It 3.1:
 - bug fix on sec2ts ts section padding after notice by Fernando Martinze Navarro (FernandoMartinezNavarro@rohde-schwarz.com)
 
 Change log JustDVB-It 3.0:
-- added support for mpeg2 elementary stream video input from ffmpeg
-- added CAT, EMM, ECM sections
-- started merging dvb-h funcionalities from fatcaps of amuse project, kudos to Andreas Berger (berger@ftw.at)
+added support for mpeg2 elementary stream video input from ffmpeg
+added CAT, EMM, ECM sections
+started merging dvb-h funcionalities from fatcaps of amuse project, kudos to Andreas Berger (berger@ftw.at)
 - tools/pes2ts: renamed tools/pesaudio2ts
 - tools/tsvbr2cbr: added
 - tools/pesvideo2ts: added 
@@ -30,8 +75,8 @@ Change log JustDVB-It 3.0:
 - tools/tscbrmuxer: fix to manage small bit rate, needs refactoring
 
 Change log JustDVB-It 2.1:
-Fixed interoperability issue with some old ADB boxes dsmcc client with last section number of modules multiple of 4066
-Improved modules update performance
+fixed interoperability issue with some old ADB boxes dsmcc client with last section number of modules multiple of 4066
+improved modules update performance
 
 Change log JustDVB-It 2.0:
 SciTE help included
@@ -42,36 +87,34 @@ Fixed support for python 2.4, currently both python 2.3 and 2.4 are working prop
 Transport stream successfully tested against StreamAnalyzer of Panasonic from MHP KBD
 Sample configuration timings successfully tested against TR-101i 290 with Dektec StreamXpert 
 Removed debug prints
-tools/tscrypt: added
-extras/cwtest: added
-extras/javasrc: added java source code of the example applications
-extras/mainconcept: added a script to manage mainconcept output
-bash-config/: added application storage option for MHP 1.1.2
-bash-config/: added Yambo 2.0 example applications
-bash-config/: added Test ste example application
+- extras/javasrc: added java source code of the example applications
+- extras/mainconcept: added a script to manage mainconcept output
+- bash-config/: added application storage option for MHP 1.1.2
+- bash-config/: added Yambo 2.0 example applications
+- bash-config/: added Test ste example application
 SciTE help included
-python-config/: new python only config, bash will phase out...
-python-config/: it is possibile to specify module id for each file or only for some, check the .descriptors example
-python-config/: added datacarousel example
-tools/i3942ts: added
-tools/tspcrmeasure: bug fix on print
-tools/tsloop: cc fix
-tools/zpipe: added
-tools/DtPlay: removed, now it is necessary to get it from Dektec web site
-tools/lib/DTAPI: removed, now it is necessary to get it from Dektec web site
-libs/: added application storage descriptor (MHP 1.1.2)
-libs/: added parental rating descriptor
-libs/: added logical channel number descriptor
-libs/: added support for compressed DSMCC modules
+- python-config/: new python only config, bash will phase out...
+- python-config/: it is possibile to specify module id for each file or only for some, check the .descriptors example
+- python-config/: added datacarousel example
+- tools/i3942ts: added
+- tools/tspcrmeasure: bug fix on print
+- tools/tsloop: cc fix
+- tools/zpipe: added
+- tools/DtPlay: removed, now it is necessary to get it from Dektec web site
+- tools/lib/DTAPI: removed, now it is necessary to get it from Dektec web site
+- libs/: added application storage descriptor (MHP 1.1.2)
+- libs/: added parental rating descriptor
+- libs/: added logical channel number descriptor
+- libs/: added support for compressed DSMCC modules
 added support for very large files (>2GB)
-manual.txt: Video and audio multiplexing revisited, renamed readme.txt (people miss it...)
+- manual.txt: Video and audio multiplexing revisited, renamed readme.txt (people miss it...)
 
 Change log JustDVB-It 1.2:
-dvbobjects/STE.py: addded Stream Event Descriptor Section
-dvbobjects/STEO.py: addded Stream Event Object
-dvbobjects/DSMCC: addded Stream Event Object with Do-It-Now support
-config/: stream event example added
-tools/tsnullshaper: added files loop to reduce latency
+- dvbobjects/STE.py: addded Stream Event Descriptor Section
+- dvbobjects/STEO.py: addded Stream Event Object
+- dvbobjects/DSMCC: addded Stream Event Object with Do-It-Now support
+- config/: stream event example added
+- tools/tsnullshaper: added files loop to reduce latency
 
 Change log JustDVB-It 1.1.1:
 Just a very cosmetical fix
@@ -80,67 +123,67 @@ Change log JustDVB-It 1.1:
 Fix a JustDvb-It bug about bad string termination thanks to IdWay support.
 
 Change log JustDVB-It 1.0:
-DtRecord: removed, if u need it u can use the official from Dektec
-EIT: bug fix
-tstdt: added new, generates gmt time from server clock and restamp TDT packets
-docs: manual.txt added
-tools/tsloop: support multiple input, removed buffering, good for transport scheduling
-config: shows an example of cbr muxing and multicarousel from MainConcept's input
+- DtRecord: removed, if u need it u can use the official from Dektec
+- EIT: bug fix
+- tstdt: added new, generates gmt time from server clock and restamp TDT packets
+- docs: manual.txt added
+- tools/tsloop: support multiple input, removed buffering, good for transport scheduling
+- config: shows an example of cbr muxing and multicarousel from MainConcept's input
 
 Change log JustDVB-It 0.5:
-tools/tsnullshaper: bug fix        
-tools/oc2sec: buf fix on debug prints 
-tools/sec2ts: bug fix on .ts length
-psi tables python look: same semantic different syntax
-dvbobjects/dvbobjectsPMT.py: changed program_loop in stream_loop
-config: added 
-tools/data2sec: renamed oc2sec
-tools/esaudio2pes: added
-tools/esaudioinfo: added
-tools/esvideo2pes: added
-tools/esvideoinfo: added
-tools/pes2es: added
-tools/pes2ts: added
-tools/pesinfo: added                                                                 
-tools/ts2pes: added
-tools/tscbrmuxer: added
-tools/vbv: added
+- tools/tsnullshaper: bug fix        
+- tools/oc2sec: buf fix on debug prints 
+- tools/sec2ts: bug fix on .ts length
+- psi tables python look: same semantic different syntax
+- dvbobjects/dvbobjectsPMT.py: changed program_loop in stream_loop
+- config: added 
+- tools/data2sec: renamed oc2sec
+- tools/esaudio2pes: added
+- tools/esaudioinfo: added
+- tools/esvideo2pes: added
+- tools/esvideoinfo: added
+- tools/pes2es: added
+- tools/pes2ts: added
+- tools/pesinfo: added                                                                 
+- tools/ts2pes: added
+- tools/tscbrmuxer: added
+- tools/vbv: added
 
 Change log JustDVB-It 0.4:
 moved to kernel 2.6
 everything can be run without root privileges
 new directories structure
-tools/tsfilter: added new
-tools/tspidmapper: modified input syntax 
-tools/data2sec: rearchitected
-config/: added
-extern/: removed
-set-ups/: removed
-drivers/dvbcharts: removed
+- tools/tsfilter: added new
+- tools/tspidmapper: modified input syntax 
+- tools/data2sec: rearchitected
+- config/: added
+- extern/: removed
+- set-ups/: removed
+- drivers/dvbcharts: removed
 
 Chane log JustDVB-It 0.3.2:
 minor buf fixes
 
 Chane log JustDVB-It 0.3.1:
 minor buf fixes
-tools/sec2tspackets: renamed sec2ts 
+- tools/sec2tspackets: renamed sec2ts 
 
 Change log JustDVB-It 0.3:
-tools/ip2sec: added new
-tools/tspidmapper: added new
-tools/tspcrmeasure: added new
-set-ups/iptrafficdemo: added new
-tools/tsloop: enhanced with variable buffer support
-tools/tsmodder: enhanced with variable buffer support
-tools/tsfiller: enhanced with variable buffer support
-tools/tsnullshaper: enhanced with variable buffer support, read packets to susbtitute only if they are read
-extern/dvbasi/DtPlay-custom: DtPlay enhanced with variable buffer support
-extern/dvbasi/DtRecord-custom: DtRecord enhanced with variable buffer support
-extern/dvbasi/DtPlay: removed
-extern/dvbasi/DtRecord: removed
+- tools/ip2sec: added new
+- tools/tspidmapper: added new
+- tools/tspcrmeasure: added new
+- set-ups/iptrafficdemo: added new
+- tools/tsloop: enhanced with variable buffer support
+- tools/tsmodder: enhanced with variable buffer support
+- tools/tsfiller: enhanced with variable buffer support
+- tools/tsnullshaper: enhanced with variable buffer support, read packets to susbtitute only if they are read
+- extern/dvbasi/DtPlay-custom: DtPlay enhanced with variable buffer support
+- extern/dvbasi/DtRecord-custom: DtRecord enhanced with variable buffer support
+- extern/dvbasi/DtPlay: removed
+- extern/dvbasi/DtRecord: removed
 
 Change log JustDVB-It 0.2:
-tools\tsnullshaper: added time insertion
-tools\dvbdata: more bug fixes
-tools\data2sec: added new MPEG and DVB descriptors, modules versioning from input parameters
-set-ups\cindemo: added multiple application ait example and fixed time of tables insertion
+- tools\tsnullshaper: added time insertion
+- tools\dvbdata: more bug fixes
+- tools\data2sec: added new MPEG and DVB descriptors, modules versioning from input parameters
+- set-ups\cindemo: added multiple application ait example and fixed time of tables insertion

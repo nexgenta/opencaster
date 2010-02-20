@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 		fd_ts = open(argv[1], O_RDONLY);
 	else {
 		fprintf(stderr, "Usage: tsstamp input.ts transport_rate_bit/s\n");
-		fprintf(stderr, "N.B: this tool will change the pcr/pts/dts values\n");
+		fprintf(stderr, "N.B: this tool will change the pcr/pts/dts values to fix loop conditions and jitter after multiplexing\n");
 		return 2;
 	}
 	if (fd_ts < 0) {
@@ -200,6 +200,7 @@ int main(int argc, char *argv[])
 				ts_header_size = TS_PACKET_SIZE; /* not managed */
 			}
 			
+			/* check the time difference between first two pts and ... */
 			pes_header_size = 0;
 			time = 0;
 			if (ts_header_size + 20 < TS_PACKET_SIZE && pid < MAX_PID) {

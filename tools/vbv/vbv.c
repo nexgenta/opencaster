@@ -147,6 +147,7 @@ int main(int argc, char *argv[]) {
 	int error_reported		= 0;		/* set if error is already reported for this frame */
 	int error_counter		= 0;		/* count errors */
 	long int total_frames		= 0L;		/* frames counter */	
+	long int popped_frames		= 0L;		/* popped_frames */	
 	long int flush_delta_byte	= 0L;		/* delta byte counter between 2 buffer flushes */
 	int GOP_size			= 0;		/* current GOP size */
 	int GOP_frames			= 0;		/* current GOP number of frames */
@@ -189,9 +190,9 @@ int main(int argc, char *argv[]) {
 		if (rbx != -1) {
 			flush_delta_time = flush_delta_byte * 8 / rbx;
 			if (flush_delta_time >= es_frame_rate) { 
-				fprintf(file_output, "%ld\t%d\n", total_frames, vbv_current_size / 1000);
 				vbv_current_size -= pop_frame() * 8;
-				fprintf(file_output, "%ld\t%d\n", total_frames, vbv_current_size / 1000);
+				fprintf(file_output, "%ld\t%d\n", popped_frames, vbv_current_size / 1000);
+				popped_frames++;
 				error_reported = 0;
 				flush_delta_byte = (flush_delta_time - es_frame_rate) * rbx / 8;
 			}
@@ -278,7 +279,7 @@ int main(int argc, char *argv[]) {
 			if (rbx == -1) {
 				rbx = res; /* best guess until now and maybe the only one ... */
 			}
-			vbv_buffer_size = 16 * 1024 * (((es_header[6] & 0x0F) << 6) | ((es_header[7] & 0xFC) >> 2));
+			vbv_buffer_size = 16 * 1024 * (((es_header[6] & 0x1F) << 5) | ((es_header[7] & 0xF8) >> 3));
 			if (es_header[7] & 0x02) {
 				byte_read += fread(es_header, 1, 64, file_es); /* intra quantiser matrix */
 				if (es_header[63] & 0x01) {

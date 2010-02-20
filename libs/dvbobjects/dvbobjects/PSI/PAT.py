@@ -38,6 +38,7 @@ class program_association_section(Section):
             "")
 
         self.table_id_extension = self.transport_stream_id # ???
+	self.private_indicator = 0
 
         fmt = "!%ds" % (len(pl_bytes))
         return pack(fmt,

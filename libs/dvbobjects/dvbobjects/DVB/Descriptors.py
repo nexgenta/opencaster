@@ -17,10 +17,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-# transport_stream_sat and transport_stream_cable descriptors by Kovacs Balazs
-
 import string
 from dvbobjects.utils import *
+from dvbobjects.utils.MJD import *
 from dvbobjects.MPEG.Descriptor import Descriptor
 
 ######################################################################                                                                                                                 
@@ -126,6 +125,57 @@ class data_broadcast_id_descriptor(Descriptor):
                     )            
                                  
 ######################################################################
+
+class local_time_offset_loop_item(DVBobject):
+
+	def pack(self):
+	
+		FMT = "!%dsBBBHBBBBB" % len(self.ISO_639_language_code)
+		return pack(FMT,
+			self.ISO_639_language_code,
+			((self.country_region_id & 0x3F) << 2) | 0x2 | (self.local_time_offset_polarity & 0x1),
+			self.local_time_offset_hour,
+			self.local_time_offset_minute,
+			MJD_convert(self.year_of_change, self.month_of_change, self.day_of_change),
+			self.hour_of_change,
+			self.minute_of_change,
+			self.second_of_change,
+			self.next_time_offset_hour,
+			self.next_time_offset_minute,
+			)
+
+
+######################################################################
+
+class local_time_offset_descriptor(Descriptor):
+
+	descriptor_tag = 0x58
+
+	def bytes(self):
+		lt_bytes = string.join(
+	    map(lambda x: x.pack(),	
+                self.local_time_offset_loop),
+            "")								    
+		FMT = "!%ds" % len(lt_bytes)
+		return pack(FMT,
+			lt_bytes
+			)
+
+
+######################################################################
+
+class _broadcast_id_descriptor(Descriptor):
+
+    descriptor_tag = 0x66
+
+    def bytes(self):
+        FMT = "!H%ds" % len(self.ID_selector_bytes)
+        return pack(FMT,         
+                    self.data_broadcast_ID,
+                    self.ID_selector_bytes,
+                    )            
+                                 
+######################################################################
 class application_signalling_descriptor(Descriptor):
 
     descriptor_tag = 0x6F
@@ -143,9 +193,8 @@ class network_descriptor(Descriptor):
     descriptor_tag = 0x40
 
     def bytes(self):
-        fmt = "!B%ds" % len(self.network_name)
+        fmt = "!%ds" % len(self.network_name)
         return pack(fmt,
-                    len(self.network_name),
                     self.network_name,
                     )
 		    
@@ -357,6 +406,36 @@ class target_smartcard_descriptor(Descriptor):
                     self.super_CA_system_id,
                     self.private_data_bytes
                     )                    
+
+class subtitling_data_descriptor_loop_item(DVBobject):
+
+    def pack(self):
+    
+        fmt = "!%dsBHH" % len(self.ISO_639_language_code)
+        return pack(fmt,
+                    self.ISO_639_language_code,
+                    self.subtitling_type,
+                    self.composition_page_id,
+                    self.ancillary_page_id,
+                    )
+
+
+class subtitling_descriptor(Descriptor):
+    
+    descriptor_tag = 0x59
+
+    def bytes(self):
+	data_bytes = string.join(
+		    map(lambda x: x.pack(),
+		    self.subtitling_data_descriptor_loop),
+		    "")
+		    
+	fmt = "!B%ds" % len(data_bytes)
+	return pack(fmt,
+	    len(data_bytes),
+	    data_bytes,
+		)
+
 
 class target_MAC_address_descriptor(Descriptor):
     
@@ -673,3 +752,118 @@ class terrestrial_delivery_system_descriptor(Descriptor):
 		    (self.code_rate_LP_stream << 5) | (self.guard_interval << 3) | (self.transmission_mode << 1) | (self.other_frequency_flag),
 		    0xffffffff,
                     )
+
+
+
+######################################################################                                                                                                                 
+class crid_descriptor_loop_item(DVBobject):
+
+    def pack(self):
+
+	if (self.location == 0x0):
+    
+    	    fmt = "!BB%ds" % len(self.crid)
+	    return pack(fmt,
+		(self.type & 0x3F) << 2 |
+		(self.location),
+	        len(self.crid),
+	        self.crid,
+	    )
+	
+	else:
+	    fmt = "!BH"
+	    return pack(fmt,
+		(self.type & 0x3F) << 2 |
+		(self.location & 0x3),
+	        self.crid_ref,
+	    )
+
+class content_identifier_descriptor(Descriptor):
+
+    descriptor_tag = 0x76
+
+    def bytes(self):
+        crid_bytes = string.join(
+	    map(lambda x: x.pack(),	
+                self.crid_descriptor_loop),
+            "")								    
+
+        FMT = "!%ds" % len(crid_bytes)
+        return pack(FMT,
+                    crid_bytes,
+                    )
+
+######################################################################
+class default_authority_descriptor(Descriptor):
+
+    descriptor_tag = 0x73
+    
+    def bytes(self):
+        fmt = "!%ds" % len(self.authority)
+        return pack(fmt,
+                    self.authority,
+                    )
+
+######################################################################                                                                                                                 
+class extended_event_loop_item(DVBobject):
+
+    def pack(self):
+    
+	fmt = "!B%dsB%ds" % (len(self.item_description), len(self.item))
+	return pack(fmt,
+	    len(self.item_description),
+	    self.item_description,
+	    len(self.item),
+	    self.item,
+	)
+
+class extended_event_descriptor(Descriptor):                                                                                                                                              
+
+    descriptor_tag = 0x4E
+    
+    def bytes(self):
+	item_bytes = string.join(
+	    map(lambda x: x.pack(),	
+                self.extended_event_loop),
+            "")	        
+	assert len(self.ISO639_language_code) == 3
+        FMT = "!B%dsB%dsB%ds" % (len(self.ISO639_language_code), len(item_bytes), len(self.text))
+        return pack(FMT,
+    		    (self.descriptor_number & 0xF) << 4 |
+    		    (self.last_descriptor_number & 0xF),
+    		    self.ISO639_language_code,
+		    len(item_bytes),
+    		    item_bytes,
+    		    len(self.text),
+    		    self.text,
+    		    )
+     
+######################################################################
+class ac3_descriptor(Descriptor):
+
+    descriptor_tag = 0x6A
+    
+    def bytes(self):
+	fmt = "!B"
+	return pack(fmt,
+	    (self.component_type_flag & 0x1) << 7 |
+	    (self.bsid_flag & 0x1) << 6 |
+	    (self.mainid_flag & 0x1) << 5 |
+	    (self.asvc_flag & 0x1) << 4,
+	)	
+	
+######################################################################
+class ISO_639_language_descriptor(Descriptor):
+
+    descriptor_tag = 0x0A
+
+    def bytes(self):
+        fmt = "!B%dsB" % (
+			len(self.ISO_639_language_code),
+			)
+        return pack(fmt,
+        	len(self.ISO_639_language_code),
+		    self.ISO_639_language_code,
+		    self.Audio_type,
+        )
+

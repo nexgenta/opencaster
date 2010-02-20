@@ -49,19 +49,20 @@ int main(int argc, char *argv[])
 	int byte_read;
 	FILE* file_es;
 	unsigned long long int pts = 0LL;
+	unsigned long long int pts_limit = 0ll;
+	unsigned long long int frame_number = 0ll;
 	unsigned char stream_id = 192; /* usual value */
 	unsigned char pes_header[PES_HEADER_SIZE];
 	unsigned char* es_frame;
 	unsigned short es_frame_size;
 	unsigned short pes_frame_size;
-	unsigned int pts_step;
 	unsigned int sample_rate;
+	unsigned long long int pts_offset;
 	
 	/* Open pes file */
 	if (argc > 3) {
 		file_es = fopen(argv[1], "rb");
 		sample_rate = atoi(argv[2]);
-		pts_step = (1152 * 90000) / sample_rate; /* (samples * clock hz) / sample rate, samples and clock are defined by the standard */
 		es_frame_size = atoi(argv[3]);
 		if (es_frame_size <= 0) {
 			fprintf(stderr, "audio_frame_size suggested is not valid\n");
@@ -74,18 +75,24 @@ int main(int argc, char *argv[])
 			return 2;
 		}
 	} else {
-		fprintf(stderr, "Usage: 'esaudio2pes audio.es sample_rate frame_size [pts_offset] [stream_id]'\n");
+		fprintf(stderr, "Usage: 'esaudio2pes audio.es sample_rate frame_size_without_padding [pts_offset] [pts_limit] [stream_id]'\n");
 		fprintf(stderr, "Example for audio with frame size 768 and sample rate 48000: esaudio2pes audio.es 48000 768\n");
-		fprintf(stderr, "pts_offset can be used to set a pts different from zero to synch audio and video\n");
+		fprintf(stderr, "pts_offset can be used to set a pts different from zero to synch audio and video and to control buffering\n");
+		fprintf(stderr, "pts_limit can be used to limit time length\n");
 		fprintf(stderr, "valid is for audio are 110xxxxx, default is 192\n");
 		return 2;
 	}
 
 	if (argc > 4) {
-		pts += atoi(argv[4]);
+		pts_offset = atoi(argv[4]);
 	}
+
 	if (argc > 5) {
-		stream_id = atoi(argv[5]);
+		pts_limit = atol(argv[5]);
+	}
+		
+	if (argc > 6) {
+		stream_id = atoi(argv[6]);
 	}
 	
 	if (file_es == 0) {
@@ -119,25 +126,57 @@ int main(int argc, char *argv[])
 	
 	/* Start the process */
 	bframe = 1;
-	while(byte_read) {
-		
+	int padding = 0;
+	pts = pts_offset;
+	frame_number = 1;
+	while(byte_read) {	
+	
+	
 		if (es_frame[0] == 0xFF && (es_frame[1] >> 5) == 0x07) { 
-		
-			stamp_ts (pts, pes_header + 9);
+
+			byte_read = fread(es_frame + ES_HEADER_SIZE, 1, es_frame_size - ES_HEADER_SIZE, file_es);
+			stamp_ts (pts % PTS_MAX, pes_header + 9);
 			pes_header[9] &= 0x0F; 
 			pes_header[9] |= 0x20; 
-			pts += pts_step;
-			if (pts > PTS_MAX)
-				pts -= PTS_MAX;
+			/* check for padding */
+			if (((es_frame[2] & 0x3) >> 1) > 0) {
+			    /* check layer */
+			    int layer = es_frame[1] & 0x6 >> 1;
+			    if (layer == 2) {
+				padding = 4;
+			    } else {
+				padding = 1;
+			    }
+			} else {
+			    padding = 0;
+			}
+			pts = pts_offset + ((frame_number * 1152 * 90000) / sample_rate);
+			if (padding) {
+			    pes_frame_size = htons(pes_frame_size + padding);  
+			    memcpy(pes_header + 4, &pes_frame_size, 2);
+			    pes_frame_size = ntohs(pes_frame_size) - padding;
+			} else {
+			    pes_frame_size = htons(pes_frame_size);  
+			    memcpy(pes_header + 4, &pes_frame_size, 2);
+			    pes_frame_size = ntohs(pes_frame_size);
+			}
 			fwrite(pes_header, 1, PES_HEADER_SIZE, stdout);
-			byte_read = fread(es_frame + ES_HEADER_SIZE, 1, es_frame_size - ES_HEADER_SIZE, file_es);	
+			frame_number++;
 			fwrite(es_frame, 1, es_frame_size, stdout);
+			if (padding) {
+			    fread(es_frame,1, padding, file_es);
+			    fwrite(es_frame,1, padding, stdout);
+			}
 			byte_read = fread(es_frame, 1, ES_HEADER_SIZE, file_es);
 
 		} else {
 			
 			fprintf(stderr, "Critical: sync byte missing, corrupted ES or frame size changed\n");
 			byte_read = 0;	
+		}
+
+		if (pts_limit > 0ll && pts >= pts_limit) {
+		    byte_read = 0;
 		}
 
 	}

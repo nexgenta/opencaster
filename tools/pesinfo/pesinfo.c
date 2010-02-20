@@ -107,6 +107,18 @@ int main(int argc, char *argv[])
 				time = parse_timestamp(timestamp);
 				fprintf(stdout, "Presentation Time Stamp is: %llu, %llu.%04llu sec.\n", time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000)); 
 				byte_read = fread(pes_header, 1, 4, file_pes);
+			} else if (pes_header[3] == 0xBD) {
+				fprintf(stdout, "pes header: %02x %02x %02x %02x, ", pes_header[0], pes_header[1], pes_header[2], pes_header[3]);
+				fread(&pes_size, 1, 2, file_pes); /* get pack size */
+				pes_size = ntohs(pes_size);
+				fprintf(stdout, "pes size %d, ", pes_size);
+				fseek(file_pes, 2, SEEK_CUR); /* get header size */
+				fread(&byte, 1, 1, file_pes);
+				fprintf(stdout, "header length: %d, ", byte);
+				fread(timestamp, 1, TIME_STAMP_SIZE, file_pes);
+				time = parse_timestamp(timestamp);
+				fprintf(stdout, "Presentation Time Stamp is: %llu, %llu.%04llu sec.\n", time,  time / (system_frequency / 300), (time % (system_frequency / 300)) / ((system_frequency / 300) / 10000)); 
+				byte_read = fread(pes_header, 1, 4, file_pes);
 			}
 		} 
 		if (byte_read == 0) {

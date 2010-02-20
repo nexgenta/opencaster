@@ -47,6 +47,7 @@ class program_map_section(Section):
             "")
 
         self.table_id_extension = self.program_number
+	self.private_indicator = 0
 
         fmt = "!HH%ds%ds" % (len(pidl_bytes), len(pl_bytes))
         return pack(fmt,
