@@ -30,7 +30,7 @@ class Descriptor(DVBobject):
 
     def pack(self):
         bytes = self.bytes()
-        return pack("!BB%ds" % len(bytes),
+        return pack("!BH%ds" % len(bytes),
                     self.descriptor_tag,
                     len(bytes),
                     bytes,
