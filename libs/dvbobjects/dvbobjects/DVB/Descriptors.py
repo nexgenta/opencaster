@@ -29,7 +29,7 @@ class short_event_descriptor(Descriptor):
     
     def bytes(self):
 	assert len(self.ISO639_language_code) == 3
-	fmt = "!%dsB%dsB%ds" % (
+	fmt = "!%dsB%dsH%ds" % (
 	    len(self.ISO639_language_code),
 	    len(self.event_name),
 	    len(self.text),
