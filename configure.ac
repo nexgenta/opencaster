@@ -40,6 +40,7 @@ case "$host_os" in
 		build_mpe2sec=yes
 		;;
 esac
+build_mpe2sec=yes
 AC_MSG_RESULT([$build_mpe2sec])
 
 AM_CONDITIONAL([BUILD_MPE2SEC],[test x"$build_mpe2sec" = x"yes"])
@@ -77,6 +78,7 @@ tools/pesdata2ts/Makefile
 tools/pesinfo/Makefile
 tools/pesvideo2ts/Makefile
 tools/sec2ts/Makefile
+tools/sec2mpe/Makefile
 tools/totsectionrestamp/Makefile
 tools/ts2pes/Makefile
 tools/ts2sec/Makefile
