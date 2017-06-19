@@ -111,14 +111,26 @@ int main(int argc, char *argv[])
 	unsigned short payload_pid;
 	unsigned char current_packet[TS_PACKET_SIZE];
 	int pusi = 0;
+	int pipe_input = 0;
 
 	/* Open ts file */
 	if (argc >= 3) {
-		fd_ts = open(argv[1], O_RDONLY);
+		// Pipe in from STDIN
+		if (*argv[1] != '-')
+		{
+			fd_ts = open(argv[1], O_RDONLY);
+		}
+		// File input
+		else
+		{
+			fd_ts = 0;
+			pipe_input = 1;
+		}
 		payload_pid = atoi(argv[2]);
 	} else {
 		fprintf(stderr, "Usage: 'ts2sec filename.ts payload_pid > sections'\n");
 		fprintf(stderr, "the tool manages corrupted ts, only complete sections are output\n");
+		fprintf(stderr, "replace filename.ts with '-' to receive input from STDIN\n");
 		return 2;
 	}
 	if (fd_ts < 0) {
@@ -128,14 +140,31 @@ int main(int argc, char *argv[])
 	if (payload_pid > MAX_PID-2) {
 		fprintf(stderr, "Invalid PID, range is [0..8190]\n");
 	}
-		
+	
 	/* Start to process the file */	
 	byte_read = 1;
 	while(byte_read) {
-	
 		/* read a ts packet */
-		byte_read = read(fd_ts, current_packet, TS_PACKET_SIZE);
-	    
+		
+		// From pipe
+		if (pipe_input == 1)
+		{
+			// No bytes received yet
+			byte_read = 0;
+
+			//Keep reading from STDIN until we get something
+			while (byte_read == 0)
+			{	
+				byte_read = read(fd_ts, current_packet, TS_PACKET_SIZE);
+			}
+		}
+		// File
+		else
+		{
+			/* read a ts packet */
+			byte_read = read(fd_ts, current_packet, TS_PACKET_SIZE);
+		}
+
 		/* check packet pid */
 		memcpy(&pid, current_packet + 1, 2);	
 		pid = ntohs(pid);
