@@ -123,6 +123,7 @@ int main(int argc, char *argv[])
 		// File input
 		else
 		{
+			// STDIN
 			fd_ts = 0;
 			pipe_input = 1;
 		}
@@ -147,20 +148,17 @@ int main(int argc, char *argv[])
 		/* read a ts packet */
 		
 		// From pipe
-		if (pipe_input == 1)
-		{
+		if (pipe_input == 1) {
 			// No bytes received yet
 			byte_read = 0;
 
 			//Keep reading from STDIN until we get something
-			while (byte_read == 0)
-			{	
+			while (byte_read == 0) {	
 				byte_read = read(fd_ts, current_packet, TS_PACKET_SIZE);
 			}
 		}
 		// File
-		else
-		{
+		else {
 			/* read a ts packet */
 			byte_read = read(fd_ts, current_packet, TS_PACKET_SIZE);
 		}
