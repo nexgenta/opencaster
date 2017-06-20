@@ -174,7 +174,7 @@ int main(int argc, char **argv)
         {
             if (idbuf[0] != 0x3e)
             {
-                fprintf(stdout, "Receive error! Not 0x3e (MPE)\n");
+                fprintf(stderr, "Receive error! Not 0x3e (MPE)\n");
             }
 
             // Write the new packet to tunnel
