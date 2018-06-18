@@ -40,3 +40,10 @@ Features:
 - PES headers analyzer
 - MPEG2 video and MPEG2/AC-3 audio ES header analyzer
 - fatcaps DVB-H support
+
+To Build:
+  autoreconf -fi
+  ./configure
+  make
+  sudo make install
+  

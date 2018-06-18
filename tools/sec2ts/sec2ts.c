@@ -129,9 +129,9 @@ int main(int argc, char *argv[])
 		if (pid < 8192) {
 			pid = htons(pid);
 	 	} else { 
-			fprintf(stdout, "Usage: 'sec2ts pid [-s]', where pid is bounded from 1 to 8191 and as default is %d\n", DEFAULT_PID);
-			fprintf(stdout, "-s tells sec2ts to start sections on TS packet boundaries\n");
-			fprintf(stdout, "Sections come from stdin and ts packets will go out from stdout.\n");
+			fprintf(stderr, "Usage: 'sec2ts pid [-s]', where pid is bounded from 1 to 8191 and as default is %d\n", DEFAULT_PID);
+			fprintf(stderr, "-s tells sec2ts to start sections on TS packet boundaries\n");
+			fprintf(stderr, "Sections come from stdin and ts packets will go out from stdout.\n");
 			return 2;
 		}
 	} else {
@@ -147,6 +147,8 @@ int main(int argc, char *argv[])
 	ts_needtopad = 0;
 	ts_padded_did_not_output_next_header = 0;
 	
+	
+
 	/* Write the first TS valid packet header */
 	memcpy(ts_header + 1, &pid, 2); /* pid */
 	ts_header[1] |= 0x40; /* payload unit start indicator */
@@ -159,14 +161,21 @@ int main(int argc, char *argv[])
 	
 	/* Start to process sections */
 	not_finished = 1;
-	section_next = get_section(&section_size_next, fd_in);
+
+	// printf("prepared to read a section");
+	// fflush(stdout);
+	//section_next = get_section(&section_size_next, fd_in);
+	
 	while (not_finished) {
+
+		section_next = get_section(&section_size_next, fd_in);
+		//printf("read a section %d", section_next);
+		//fflush(stdout);
 
 		if (section_next != 0) {
 			memcpy(section_memory, section_next, SECTION_MAX_SIZE + 1);
 			section = section_memory;
 			section_size = section_size_next;
-			section_next = get_section(&section_size_next, fd_in);
 		} else {
 			section = 0;
 			section_size = 0;
@@ -179,6 +188,7 @@ int main(int argc, char *argv[])
 
 			if (ts_padded_did_not_output_next_header) {
 			    fwrite(ts_header, 1, ts_header_size, fd_out);
+			    fflush(fd_out);
 			    ts_bytes = ts_header_size;
 			    ts_padded_did_not_output_next_header = 0; 
 			}
@@ -194,6 +204,7 @@ int main(int argc, char *argv[])
 				if (section_bytes < section_size) {
 					for (; ts_bytes < TS_PACKET_SIZE && section_bytes < section_size; ts_bytes++, section_bytes++)
 						fwrite(section + section_bytes, 1, 1, fd_out);
+					fflush(fd_out);
 				}
 				
 				if (ts_bytes == TS_PACKET_SIZE) {
@@ -219,6 +230,7 @@ int main(int argc, char *argv[])
 					ts_header[3] = ts_continuity_counter | 0x10; /* continuity counter, no scrambling, only payload */
 					ts_continuity_counter = (ts_continuity_counter + 1) % 0x10; /* inc. continuity counter */
 					fwrite(ts_header, 1, ts_header_size, fd_out);
+					fflush(fd_out);
 					ts_bytes = ts_header_size;
 				}
 			}
@@ -250,7 +262,7 @@ int main(int argc, char *argv[])
 			ts_padded_did_not_output_next_header = 1;
 
         	}
-		
+		fflush(fd_out);	
 	}
 	
 	return 0;
